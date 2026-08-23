@@ -1,0 +1,13 @@
+# --- Phase 0/1: Tracker + DB (required now) ---
+pywin32>=307
+psutil==6.0.0
+sqlalchemy>=2.0.36
+python-dotenv==1.0.1
+
+# --- Phase 2: Backend API (required now) ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+
+# --- Phase 6: Optional AI layer (install only if you use it) ---
+# anthropic==0.34.0
