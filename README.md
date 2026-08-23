@@ -5,7 +5,7 @@ and idle periods to a local SQLite database. Built in phases -
 tracker first (no AI, no frontend needed to be useful), backend and
 dashboard layered on top later.
 
-## Current status: Phase 0 + Phase 1 + Phase 2 (Foundation, MVP Tracker, Backend API)
+## Current status: Phase 0 + Phase 1 + Phase 2 + Phase 4 (Foundation, Tracker, Backend, Dashboard)
 
 What works right now:
 - Captures the active window (app name + title) every 5 seconds
@@ -13,10 +13,11 @@ What works right now:
 - Writes completed events to a local SQLite DB, append-only
 - Runs as a standalone background process - no backend/frontend required
 - FastAPI backend with aggregation endpoints (daily/weekly summaries, raw event inspection)
+- A responsive web dashboard: today's totals, a day timeline strip, app
+  breakdown, and a weekly trend chart - served directly from the backend
 
 What's NOT built yet (see roadmap below):
-- App categorization (Phase 3)
-- Dashboard UI (Phase 4)
+- App categorization (Phase 3 - can be added independent of the dashboard)
 - AI summary/categorization layer (Phase 6, optional)
 
 ## Setup (Windows)
@@ -74,6 +75,25 @@ in separate terminals - the tracker writes, the backend reads. Neither
 depends on the other being alive; you can stop and restart either
 independently.
 
+## Viewing the dashboard (Phase 4)
+
+With the backend running (`python scripts/run_backend.py`), open:
+
+**http://127.0.0.1:8000/dashboard/**
+
+You'll see:
+- **Today** - total active/idle time as HH:MM:SS, a color-coded "day
+  timeline" strip showing proportionally how your tracked time split
+  across apps, and a ranked app breakdown list
+- **This week** - a bar chart of daily active hours, plus your top
+  apps across the last 7 days
+
+It auto-refreshes every 60 seconds, or click "Refresh" to update on
+demand. It's a static HTML/CSS/JS page (no build step) served
+directly by FastAPI, so there's nothing extra to install - it needs
+an internet connection on first load only, to fetch the Chart.js
+library from a CDN.
+
 ## Verifying it's working
 
 While the tracker runs, open a **second** terminal (don't kill the
@@ -112,15 +132,18 @@ focus-tracker/
 ├── tracker/          # Background daemon: capture + idle detection
 ├── db/                # SQLAlchemy models + session management
 ├── backend/           # FastAPI app: routers, aggregation service, schemas
-│   ├── main.py          # App entrypoint
+│   ├── main.py          # App entrypoint, also serves the dashboard
 │   ├── routers/          # /summary and /sessions endpoints
 │   ├── services/          # aggregation.py - all rollup logic lives here
 │   └── schemas.py          # API response shapes (Pydantic)
-├── frontend/           # Dashboard (Phase 4+, not built yet)
+├── frontend/           # Dashboard: static HTML/CSS/JS, no build step
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
 ├── config/settings.py  # ALL tunable values live here
 ├── scripts/
 │   ├── run_tracker.py   # Entry point for the tracker daemon
-│   └── run_backend.py    # Entry point for the API server
+│   └── run_backend.py    # Entry point for the API server + dashboard
 ├── tests/              # Isolated, OS-independent tests
 └── data/tracker.db      # SQLite file (gitignored)
 ```
@@ -129,9 +152,9 @@ focus-tracker/
 
 - [x] Phase 0: Schema + project structure
 - [x] Phase 1: MVP tracker daemon
-- [x] Phase 2: Aggregation logic + FastAPI backend (this is what's in this repo now)
+- [x] Phase 2: Aggregation logic + FastAPI backend
 - [ ] Phase 3: Rule-based app categorization
-- [ ] Phase 4: Web dashboard (today/weekly views)
+- [x] Phase 4: Web dashboard (this is what's in this repo now)
 - [ ] Phase 5: Run as a startup task, dogfood for a week
 - [ ] Phase 6 (optional): AI-generated weekly summaries, AI fallback
       categorization for unrecognized apps - additive only, core

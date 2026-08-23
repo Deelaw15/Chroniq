@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">◈</span>
+      <span class="brand-name">Focus Tracker</span>
+    </div>
+    <button id="refresh-btn" class="refresh-btn" title="Refresh data">
+      <span class="refresh-icon">↻</span> Refresh
+    </button>
+  </header>
+
+  <main>
+
+    <!-- TODAY SECTION -->
+    <section class="panel today-panel">
+      <div class="panel-label">
+        <span class="eyebrow">Today</span>
+        <span id="today-date" class="date-sub">—</span>
+      </div>
+
+      <div class="readout-row">
+        <div class="readout">
+          <div class="readout-value" id="active-readout">00:00:00</div>
+          <div class="readout-label">Active</div>
+        </div>
+        <div class="readout readout-secondary">
+          <div class="readout-value" id="idle-readout">00:00:00</div>
+          <div class="readout-label">Idle</div>
+        </div>
+      </div>
+
+      <div class="timeline-block">
+        <div class="timeline-header">
+          <span class="timeline-title">Day timeline</span>
+          <span class="timeline-hint">00:00 — 24:00</span>
+        </div>
+        <div id="day-timeline" class="day-timeline">
+          <div class="timeline-empty" id="timeline-empty">No data yet today</div>
+        </div>
+        <div id="timeline-legend" class="timeline-legend"></div>
+      </div>
+
+      <div class="breakdown-block">
+        <span class="breakdown-title">App breakdown</span>
+        <div id="app-breakdown" class="app-breakdown">
+          <div class="breakdown-empty">Waiting for data…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WEEKLY SECTION -->
+    <section class="panel week-panel">
+      <div class="panel-label">
+        <span class="eyebrow">This week</span>
+        <span id="week-range" class="date-sub">—</span>
+      </div>
+
+      <div class="chart-block">
+        <canvas id="weekly-chart" height="180"></canvas>
+      </div>
+
+      <div class="breakdown-block">
+        <span class="breakdown-title">Top apps this week</span>
+        <div id="week-top-apps" class="app-breakdown">
+          <div class="breakdown-empty">Waiting for data…</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <span id="status-text">Connecting to localhost:8000…</span>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
