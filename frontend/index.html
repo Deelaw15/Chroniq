@@ -10,85 +10,209 @@
 </head>
 <body>
 
-<div class="app">
+<div class="frame">
 
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-mark">◈</span>
-      <span class="brand-name">Focus Tracker</span>
+  <nav class="sidebar">
+    <div class="avatar">◈</div>
+    <div class="nav-item active"><span class="nav-icon">▤</span>Today</div>
+    <div class="nav-item"><span class="nav-icon">▦</span>Weekly</div>
+    <div class="nav-item"><span class="nav-icon">⚙</span>Settings</div>
+  </nav>
+
+  <div class="main-col">
+
+    <!-- Top bar: single consolidated readout + session controls -->
+    <div class="top-bar">
+      <span class="brand-title">Focus Tracker</span>
+
+      <div class="session-controls">
+        <button class="session-btn primary" id="btn-start">▶ Start Focus</button>
+        <button class="session-btn warn" id="btn-pause" disabled>⏸ Pause</button>
+        <button class="session-btn stop" id="btn-stop" disabled>■ Stop</button>
+      </div>
+
+      <div class="focus-readout">
+        <span class="value" id="main-elapsed">04:12:00</span>
+        <span class="label">Focus time today</span>
+      </div>
+      <div class="idle-inline" id="idle-inline">Idle 00:00:00</div>
+
+      <div class="session-status" id="session-status"><span class="dot"></span>Not tracking a session</div>
+
+      <div class="spacer"></div>
+      <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
     </div>
-    <button id="refresh-btn" class="refresh-btn" title="Refresh data">
-      <span class="refresh-icon">↻</span> Refresh
-    </button>
-  </header>
 
-  <main>
-
-    <!-- TODAY SECTION -->
-    <section class="panel today-panel">
-      <div class="panel-label">
-        <span class="eyebrow">Today</span>
-        <span id="today-date" class="date-sub">—</span>
+    <!-- KPI row -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Weekly Avg</div>
+        <div class="kpi-value" id="kpi-weekly-avg">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-weekly-avg-bar" style="width:0%;background:var(--gold)"></div></div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Break Ratio</div>
+        <div class="kpi-value good" id="kpi-break-ratio">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-break-ratio-bar" style="width:0%"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">App Switches</div>
+        <div class="kpi-value warn" id="kpi-switches">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-switches-bar" style="width:0%;background:var(--danger)"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Idle Time</div>
+        <div class="kpi-value" id="kpi-idle">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-idle-bar" style="width:0%;background:var(--text-dim)"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Most Active Day</div>
+        <div class="kpi-value" id="kpi-active-day" style="font-size:16px;">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:90%;background:var(--gold)"></div></div>
+      </div>
+    </div>
 
-      <div class="readout-row">
-        <div class="readout">
-          <div class="readout-value" id="active-readout">00:00:00</div>
-          <div class="readout-label">Active</div>
+    <!-- Insights - rule-based, computed from real data, no AI -->
+    <div class="insights-panel">
+      <span class="panel-title" style="margin-bottom:12px;">Insights</span>
+      <div id="insights-list">
+        <div class="breakdown-empty" style="font-size:13px;color:var(--text-dim);">Loading insights…</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+
+      <!-- Gauge + Top apps -->
+      <section class="panel">
+        <span class="panel-title">Daily Goal Progress</span>
+        <div class="gauge-wrap">
+          <svg width="210" height="134" viewBox="0 0 220 140">
+            <path d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="#30363E" stroke-width="14" stroke-linecap="round"/>
+            <path id="gauge-arc" d="M 20 120 A 90 90 0 0 1 175 46" fill="none" stroke="#4FAE9D" stroke-width="14" stroke-linecap="round"/>
+          </svg>
+          <div class="gauge-pct" id="gauge-pct">—</div>
+          <div class="gauge-sub" id="gauge-sub">of daily goal</div>
+          <div class="gauge-goal-text" id="gauge-goal-text">—</div>
+          <button class="add-task-btn" id="edit-goal-btn" style="margin-top:10px;">Edit goal</button>
         </div>
-        <div class="readout readout-secondary">
-          <div class="readout-value" id="idle-readout">00:00:00</div>
-          <div class="readout-label">Idle</div>
+      </section>
+
+      <section class="panel">
+        <span class="panel-title">Top Apps Today</span>
+        <div id="top-apps-list">
+          <div class="breakdown-empty" style="font-size:13px;color:var(--text-dim);">Loading…</div>
+        </div>
+      </section>
+
+      <!-- Heatmap -->
+      <section class="panel heatmap-panel">
+        <span class="panel-title">Weekly Activity Heatmap</span>
+        <div id="heatmap-days"></div>
+        <div class="heat-hour-axis" id="heatmap-hour-axis"></div>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <span class="heat-swatch" style="background:#262B32"></span>
+          <span class="heat-swatch" style="background:#33474A"></span>
+          <span class="heat-swatch" style="background:#4FAE9D"></span>
+          <span class="heat-swatch" style="background:#D9A441"></span>
+          <span>More</span>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="frame-footer" id="status-text">Loading…</div>
+  </div>
+
+  <!-- Right rail -->
+  <div class="right-col">
+    <div class="now-card">
+      <div class="now-title-row">
+        <div class="now-title"><span class="live-dot idle-dot" id="now-dot"></span>Focus Session</div>
+        <button class="settings-toggle" id="settings-toggle" title="Timer settings">⚙</button>
+      </div>
+
+      <div class="phase-label phase-idle" id="phase-label">Idle</div>
+
+      <div class="now-app-row">
+        <div class="now-app-icon" id="now-icon">⌘</div>
+        <div>
+          <div class="now-app-name" id="now-name">No active session</div>
+          <div class="now-app-sub" id="now-sub">Click Start Focus or start a task</div>
         </div>
       </div>
 
-      <div class="timeline-block">
-        <div class="timeline-header">
-          <span class="timeline-title">Day timeline</span>
-          <span class="timeline-hint">00:00 — 24:00</span>
+      <div class="now-elapsed" id="now-elapsed">25:00</div>
+      <div class="now-elapsed-label" id="now-elapsed-label">Focus block remaining</div>
+
+      <div class="cycle-dots" id="cycle-dots"></div>
+
+      <div class="settings-form" id="settings-form">
+        <div class="settings-field">
+          <label>Focus (minutes)</label>
+          <input type="number" id="set-focus" value="25" min="1" max="90">
         </div>
-        <div id="day-timeline" class="day-timeline">
-          <div class="timeline-empty" id="timeline-empty">No data yet today</div>
+        <div class="settings-field">
+          <label>Short break (minutes)</label>
+          <input type="number" id="set-short" value="5" min="1" max="30">
         </div>
-        <div id="timeline-legend" class="timeline-legend"></div>
-      </div>
-
-      <div class="breakdown-block">
-        <span class="breakdown-title">App breakdown</span>
-        <div id="app-breakdown" class="app-breakdown">
-          <div class="breakdown-empty">Waiting for data…</div>
+        <div class="settings-field">
+          <label>Cycles before long break</label>
+          <input type="number" id="set-cycles" value="4" min="1" max="8">
         </div>
-      </div>
-    </section>
-
-    <!-- WEEKLY SECTION -->
-    <section class="panel week-panel">
-      <div class="panel-label">
-        <span class="eyebrow">This week</span>
-        <span id="week-range" class="date-sub">—</span>
-      </div>
-
-      <div class="chart-block">
-        <canvas id="weekly-chart" height="180"></canvas>
-      </div>
-
-      <div class="breakdown-block">
-        <span class="breakdown-title">Top apps this week</span>
-        <div id="week-top-apps" class="app-breakdown">
-          <div class="breakdown-empty">Waiting for data…</div>
+        <div class="settings-field">
+          <label>Long break (minutes)</label>
+          <input type="number" id="set-long" value="20" min="1" max="60">
         </div>
+        <div class="settings-hint">Editable only while idle. Applies to your next session.</div>
       </div>
-    </section>
+    </div>
 
-  </main>
+    <div class="tasks-panel">
+      <div class="tasks-panel-header">
+        <span class="panel-title" style="margin-bottom:0;">Task Sessions</span>
+        <button class="add-task-btn" id="add-task-btn">+ Add Task</button>
+      </div>
 
-  <footer class="app-footer">
-    <span id="status-text">Connecting to localhost:8000…</span>
-  </footer>
+      <div id="task-list">
+
+      <div class="task-row" data-task="Code Feature" data-tag="Code.exe">
+        <div class="task-info">
+          <div class="task-name">Code Feature</div>
+          <div class="task-tag">Code.exe · Pomodoro 24</div>
+        </div>
+        <button class="task-start-btn">▶ Start</button>
+      </div>
+
+      <div class="task-row" data-task="Analyze Feedback" data-tag="Explorer.exe">
+        <div class="task-info">
+          <div class="task-name">Analyze Feedback</div>
+          <div class="task-tag">Explorer.exe · 20m block</div>
+        </div>
+        <button class="task-start-btn">▶ Start</button>
+      </div>
+
+      <div class="task-row" data-task="Write Documentation" data-tag="Notion.exe">
+        <div class="task-info">
+          <div class="task-name">Write Documentation</div>
+          <div class="task-tag">Notion.exe · 30m block</div>
+        </div>
+        <button class="task-start-btn">▶ Start</button>
+      </div>
+
+      <div class="task-row" data-task="Review PR" data-tag="chrome.exe">
+        <div class="task-info">
+          <div class="task-name">Review PR</div>
+          <div class="task-tag">chrome.exe · High priority</div>
+        </div>
+        <button class="task-start-btn">▶ Start</button>
+      </div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -30,6 +30,8 @@ class DailySummaryOut(BaseModel):
     total_active_seconds: float
     total_idle_seconds: float
     app_breakdown: list[AppBreakdownItem]
+    app_switch_count: int
+    break_ratio: float  # 0.0-1.0, idle time as a fraction of total tracked time
 
 
 class WeeklySummaryOut(BaseModel):
@@ -37,3 +39,16 @@ class WeeklySummaryOut(BaseModel):
     end_date: str
     daily_totals: list[dict]  # [{"date": "...", "active_seconds": ...}, ...]
     top_apps: list[AppBreakdownItem]
+    most_active_day: str | None  # date string, e.g. "2026-08-22"
+    avg_app_switch_count: float
+
+
+class HeatmapDay(BaseModel):
+    date: str
+    hours: list[float]  # 24 values, active seconds per local hour (0-23)
+
+
+class HeatmapOut(BaseModel):
+    start_date: str
+    end_date: str
+    days: list[HeatmapDay]

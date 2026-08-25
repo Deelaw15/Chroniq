@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.dependencies import get_db
-from backend.schemas import DailySummaryOut, WeeklySummaryOut
+from backend.schemas import DailySummaryOut, WeeklySummaryOut, HeatmapOut
 from backend.services import aggregation
 
 router = APIRouter(prefix="/summary", tags=["summary"])
@@ -36,3 +36,15 @@ def summary_week(
     if start_date is None:
         start_date = date.today() - timedelta(days=6)
     return aggregation.get_weekly_summary(db, start_date)
+
+
+@router.get("/heatmap", response_model=HeatmapOut)
+def summary_heatmap(
+    start_date: date | None = Query(
+        None, description="YYYY-MM-DD. Defaults to 6 days ago (rolling week ending today)."
+    ),
+    db: Session = Depends(get_db),
+):
+    if start_date is None:
+        start_date = date.today() - timedelta(days=6)
+    return aggregation.get_hourly_heatmap(db, start_date)
