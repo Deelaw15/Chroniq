@@ -293,12 +293,11 @@ function getHeatColorsForAccent(accentName) {
   const n2 = '#2C3A3D';
   const n3 = '#33474A';
   // Derive two accent shades by simple opacity blends (approximate lighter tints)
-  const a1 = accent;
-  // lighter tint - blend with white roughly
-  const a2 = tintHex(accent, 0.4);
-  // final highlight: a warm gold to indicate very high impact
-  const highlight = '#D9A441';
-  return [n1, n2, n3, a1, a2, highlight];
+  // derive a small accent ramp: slightly darker, lighter tint, and a brighter highlight
+  const a_darker = shadeHex(accent, 0.18);
+  const a_lighter = tintHex(accent, 0.35);
+  const a_highlight = tintHex(accent, 0.65);
+  return [n1, n2, n3, a_darker, a_lighter, a_highlight];
 }
 
 // Tiny helper: produce a simple tint of a hex color towards white by factor (0..1)
@@ -311,6 +310,18 @@ function tintHex(hex, factor) {
   const nr = Math.round(r + (255 - r) * factor);
   const ng = Math.round(g + (255 - g) * factor);
   const nb = Math.round(b + (255 - b) * factor);
+  return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
+}
+
+// Shade a hex toward black by `factor` (0..1). factor=0 -> same color, factor=1 -> black
+function shadeHex(hex, factor) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  const nr = Math.max(0, Math.round(r * (1 - factor)));
+  const ng = Math.max(0, Math.round(g * (1 - factor)));
+  const nb = Math.max(0, Math.round(b * (1 - factor)));
   return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
 }
 
