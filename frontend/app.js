@@ -349,9 +349,21 @@ function renderHeatmap(heatmap) {
   try {
     const swatches = document.querySelectorAll('.heatmap-legend .heat-swatch');
     if (swatches && swatches.length > 0) {
+      // Order swatches from lightest (Less) -> darkest (More).
+      const luminance = (hex) => {
+        const h = hex.replace('#','');
+        const r = parseInt(h.substring(0,2),16)/255;
+        const g = parseInt(h.substring(2,4),16)/255;
+        const b = parseInt(h.substring(4,6),16)/255;
+        // sRGB to linear
+        const srgb = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+        const L = 0.2126*srgb(r) + 0.7152*srgb(g) + 0.0722*srgb(b);
+        return L;
+      };
+      const sorted = [...heatColors].sort((a,b) => luminance(a) - luminance(b));
       for (let i = 0; i < swatches.length; i++) {
-        const idx = Math.round(i * (heatColors.length - 1) / Math.max(1, swatches.length - 1));
-        swatches[i].style.background = heatColors[idx];
+        const idx = Math.round(i * (sorted.length - 1) / Math.max(1, swatches.length - 1));
+        swatches[i].style.background = sorted[idx];
       }
     }
   } catch (e) { /* ignore if legend not present */ }
