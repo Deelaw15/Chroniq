@@ -241,6 +241,28 @@ body {
     var(--bg);
 }
 
+/* Heatmap box / cell tweaks: show crisp light box with clear borders in light theme,
+   and keep the darker, low-contrast look in dark theme. */
+.heatmap-panel { background: var(--panel); border: 1px solid var(--border); }
+
+[data-theme="light"] .heatmap-panel {
+  /* pure white box to contrast with page background */
+  background: #ffffff;
+  border-color: #111; /* strong border for clarity */
+}
+
+.heat-cell { aspect-ratio: 1 / 1; border-radius: 3px; }
+
+[data-theme="light"] .heat-cell {
+  /* show subtle cell separation on light backgrounds */
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] .heat-cell {
+  /* darker theme: keep cells flat and seamless */
+  border: 1px solid transparent;
+}
+
 /* ---------- Accent color variants ---------- */
 [data-accent="blue"] { --accent: #5B8DEF; --accent-soft: #3E6BC4; }
 [data-accent="purple"] { --accent: #9575B0; --accent-soft: #7A5C92; }
