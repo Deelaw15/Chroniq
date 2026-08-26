@@ -1,16 +1,6 @@
 // ============================================================
-// Theme & accent color (applied first, before anything renders,
-// to avoid a flash of the wrong theme)
+// API base
 // ============================================================
-function applyTheme() {
-  const theme = localStorage.getItem('focusTracker.theme') || 'dark';
-  const accent = localStorage.getItem('focusTracker.accent') || 'teal';
-  document.documentElement.setAttribute('data-theme', theme);
-  document.documentElement.setAttribute('data-accent', accent);
-  return { theme, accent };
-}
-applyTheme();
-
 const API_BASE = window.location.origin; // same-origin, served by FastAPI at /dashboard
 
 // ============================================================

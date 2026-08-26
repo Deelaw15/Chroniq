@@ -376,5 +376,63 @@
 </div>
 
 <script src="app.js"></script>
+
+<!-- Runtime error overlay: displays uncaught errors and unhandled promise rejections -->
+<div id="error-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);color:var(--text);max-width:900px;width:calc(100% - 40px);margin:24px;border-radius:10px;padding:16px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <strong style="font-size:16px;">Runtime Error — Focus Tracker</strong>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="error-copy" style="padding:6px 8px;border-radius:6px;border:0;background:var(--accent);color:#fff;">Copy</button>
+        <button id="error-close" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);">Dismiss</button>
+      </div>
+    </div>
+    <div id="error-message" style="font-family:IBM Plex Mono, monospace;white-space:pre-wrap;color:var(--text);max-height:360px;overflow:auto;padding:8px;border-radius:6px;background:var(--panel-raised);border:1px dashed var(--border);"></div>
+    <div style="margin-top:8px;font-size:13px;color:var(--text-dim);">If this error prevents the UI from working, please copy the error and share it.</div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const overlay = document.getElementById('error-overlay');
+    const msg = document.getElementById('error-message');
+    const btnClose = document.getElementById('error-close');
+    const btnCopy = document.getElementById('error-copy');
+
+    function showError(title, detail) {
+      try {
+        const text = `${title}\n\n${detail}`;
+        msg.textContent = text;
+        overlay.style.display = 'flex';
+        console.error('[Runtime Error Overlay]', text);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    window.addEventListener('error', function (ev) {
+      const err = ev.error || ev.message || String(ev);
+      const stack = ev.error && ev.error.stack ? ev.error.stack : (ev.filename ? `${ev.message} at ${ev.filename}:${ev.lineno}:${ev.colno}` : String(err));
+      showError('Uncaught error', stack);
+    });
+
+    window.addEventListener('unhandledrejection', function (ev) {
+      const reason = ev.reason;
+      const detail = reason && reason.stack ? reason.stack : JSON.stringify(reason);
+      showError('Unhandled promise rejection', detail);
+    });
+
+    btnClose.addEventListener('click', function(){ overlay.style.display='none'; });
+    btnCopy.addEventListener('click', function(){
+      try { navigator.clipboard.writeText(msg.textContent); } catch(e){
+        // fallback
+        const ta = document.createElement('textarea'); ta.value = msg.textContent; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+    });
+
+    // Also expose a programmatic way to show errors from the console
+    window.__showRuntimeError = showError;
+  })();
+</script>
 </body>
 </html>
