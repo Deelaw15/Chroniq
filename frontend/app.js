@@ -492,11 +492,19 @@ function updateUI() {
   renderCycleDots();
 }
 
-function startSession(taskName, taskTag) {
+function startSession(taskName, taskTag, designatedDurationMin) {
   sessionState = 'running';
   phase = 'focus';
-  remainingSeconds = phaseDurationSeconds('focus');
   completedCycles = 0;
+
+  // If the task provides a designated duration (minutes), use that for this
+  // session's initial focus block. Otherwise fall back to the configured
+  // pomodoro focus length.
+  if (designatedDurationMin && !isNaN(designatedDurationMin) && designatedDurationMin > 0) {
+    remainingSeconds = Math.floor(designatedDurationMin * 60);
+  } else {
+    remainingSeconds = phaseDurationSeconds('focus');
+  }
 
   if (taskName) {
     activeTaskName = taskName;
@@ -548,16 +556,18 @@ btnStop.addEventListener('click', stopSession);
 const taskList = document.getElementById('task-list');
 
 const DEFAULT_TASKS = [
-  { name: 'Code Feature', tag: 'Code.exe · Pomodoro 24' },
-  { name: 'Analyze Feedback', tag: 'Explorer.exe · 20m block' },
-  { name: 'Write Documentation', tag: 'Notion.exe · 30m block' },
-  { name: 'Review PR', tag: 'chrome.exe · High priority' },
+  { name: 'Code Feature', tag: 'Code.exe', durationMin: 24 },
+  { name: 'Analyze Feedback', tag: 'Explorer.exe', durationMin: 20 },
+  { name: 'Write Documentation', tag: 'Notion.exe', durationMin: 30 },
+  { name: 'Review PR', tag: 'chrome.exe', durationMin: null },
 ];
 
 function loadTasks() {
   try {
     const stored = JSON.parse(localStorage.getItem('focusTracker.tasks') || 'null');
-    return stored || DEFAULT_TASKS;
+    // Backwards compatibility: tasks may be an array of {name, tag} or {name, tag, durationMin}
+    if (stored && Array.isArray(stored)) return stored.map(t => ({ name: t.name, tag: t.tag || '', durationMin: (t.durationMin != null) ? t.durationMin : (t.duration ? t.duration : null) }));
+    return DEFAULT_TASKS;
   } catch (e) {
     return DEFAULT_TASKS;
   }
@@ -567,6 +577,7 @@ function persistTasks() {
   const tasks = [...taskList.querySelectorAll('.task-row')].map(row => ({
     name: row.dataset.task,
     tag: row.dataset.tag,
+    durationMin: row.dataset.durationMin ? parseInt(row.dataset.durationMin, 10) : null,
   }));
   localStorage.setItem('focusTracker.tasks', JSON.stringify(tasks));
 }
@@ -589,7 +600,9 @@ function attachTaskRowHandlers(row) {
     if (sessionState !== 'idle') clearInterval(timerInterval);
     row.classList.add('active-task');
     startBtn.textContent = '■ Stop';
-    startSession(row.dataset.task, row.dataset.tag);
+    // If task has a designated duration, use it; otherwise fall back to pomodoro focus length
+    const dur = row.dataset.durationMin ? parseInt(row.dataset.durationMin, 10) : null;
+    startSession(row.dataset.task, row.dataset.tag, dur);
   });
 
   editBtn.addEventListener('click', () => {
@@ -597,10 +610,19 @@ function attachTaskRowHandlers(row) {
     if (!newName || !newName.trim()) return;
     const newTag = prompt('App / detail (optional):', row.dataset.tag || '');
 
+    // Ask for an optional duration in minutes (leave blank to keep pomodoro defaults)
+    const durInput = prompt('Designated time for this task (minutes) — leave blank to use Pomodoro focus length:', row.dataset.durationMin || '');
+    const durVal = durInput && durInput.trim() !== '' ? parseInt(durInput, 10) : null;
+
     row.dataset.task = newName.trim();
     row.dataset.tag = (newTag || '').trim();
+    if (durVal && !isNaN(durVal) && durVal > 0) row.dataset.durationMin = String(durVal);
+    else row.dataset.durationMin = '';
     row.querySelector('.task-name').textContent = row.dataset.task;
-    row.querySelector('.task-tag').textContent = row.dataset.tag || 'No detail added';
+    // Display tag with duration if present
+    const displayTag = row.dataset.tag || 'No detail added';
+    const displayWithDur = row.dataset.durationMin ? `${displayTag} · ${row.dataset.durationMin}m` : displayTag;
+    row.querySelector('.task-tag').textContent = displayWithDur;
 
     // If this task is the one currently running, keep the live session
     // display in sync with the rename instead of showing stale text.
@@ -625,6 +647,8 @@ function buildTaskRow(name, tag) {
   row.className = 'task-row';
   row.dataset.task = name;
   row.dataset.tag = tag || '';
+  // durationMin may come from the tag in legacy data; leave blank by default
+  row.dataset.durationMin = '';
   row.innerHTML = `
     <div class="task-info">
       <div class="task-name">${name}</div>
@@ -642,14 +666,24 @@ function buildTaskRow(name, tag) {
 
 taskList.innerHTML = '';
 for (const t of loadTasks()) {
-  taskList.appendChild(buildTaskRow(t.name, t.tag));
+  const row = buildTaskRow(t.name, t.tag);
+  if (t.durationMin) row.dataset.durationMin = String(t.durationMin);
+  // update visible tag to show minutes when present
+  const tagEl = row.querySelector('.task-tag');
+  tagEl.textContent = row.dataset.durationMin ? `${row.dataset.tag} · ${row.dataset.durationMin}m` : row.dataset.tag || 'No detail added';
+  taskList.appendChild(row);
 }
 
 document.getElementById('add-task-btn').addEventListener('click', () => {
   const name = prompt('Task name:');
   if (!name || !name.trim()) return;
   const tag = prompt('App / detail (optional):', '');
-  taskList.appendChild(buildTaskRow(name.trim(), (tag || '').trim()));
+  const dur = prompt('Designated time for this task (minutes) — leave blank to use Pomodoro focus length:', '');
+  const row = buildTaskRow(name.trim(), (tag || '').trim());
+  if (dur && dur.trim() !== '') row.dataset.durationMin = String(parseInt(dur, 10));
+  const tagEl = row.querySelector('.task-tag');
+  tagEl.textContent = row.dataset.durationMin ? `${row.dataset.tag} · ${row.dataset.durationMin}m` : row.dataset.tag || 'No detail added';
+  taskList.appendChild(row);
   persistTasks();
 });
 
