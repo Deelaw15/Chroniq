@@ -195,45 +195,74 @@ function renderInsights(today, week) {
 // Rendering: daily goal gauge
 // ============================================================
 function renderGauge(today) {
-  const goal = getDailyGoalSeconds();
-  const active = today.total_active_seconds;
-  const pct = Math.min(100, Math.round((active / goal) * 100));
+  const goal = Math.max(1, getDailyGoalSeconds());
+  const active = Math.max(0, Number(today.total_active_seconds) || 0);
+  const progressRatio = Math.min(1, active / goal);
+  const pct = Math.round(progressRatio * 100);
+  const remaining = Math.max(0, goal - active);
+  const remainingRatio = Math.max(0, Math.min(1, remaining / goal));
 
   document.getElementById('gauge-pct').textContent = `${pct}%`;
   document.getElementById('gauge-sub').textContent = `of ${formatShort(goal)} daily goal`;
-
-  const remaining = Math.max(0, goal - active);
   document.getElementById('gauge-goal-text').textContent =
     remaining > 0
       ? `${formatShort(active)} logged · ${formatShort(remaining)} remaining`
       : `${formatShort(active)} logged · goal reached`;
 
-  const cx = 110, cy = 120, r = 90;
-  const bgEl = document.getElementById('gauge-arc');
-  const dashEl = document.getElementById('gauge-dash');
-  const accentHex = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  try {
-    // background semicircle (subtle)
-    bgEl.style.stroke = 'transparent';
-    // dashed overlay
-    const len = dashEl.getTotalLength();
-    // choose number of dashes across the semicircle
-    const dashCount = 36;
-    // compute dash/gap such that dashes are roughly even
-    const dashLen = Math.max(2, Math.floor(len / (dashCount * 1.6)));
-    const gapLen = Math.max(2, Math.floor(dashLen * 0.6));
-    dashEl.style.strokeDasharray = `${dashLen} ${gapLen}`;
-    // visible proportion based on pct (0..1)
-    const visible = Math.max(0, Math.min(1, pct / 100));
-    // stroke-dashoffset: hide trailing portion by offsetting along the path
-    const dashOffset = len * (1 - visible);
-    dashEl.style.strokeDashoffset = String(dashOffset);
-    dashEl.style.transition = 'stroke-dashoffset 400ms ease, stroke 200ms ease';
-    dashEl.style.stroke = accentHex || '#4FAE9D';
-  } catch (e) {
-    // fallback: set simple arc path if needed
-    bgEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 0 1 200 120`);
-    dashEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 0 1 200 120`);
+  // Build a real segmented semicircle. Each active segment represents
+  // a portion of the goal that is still remaining, so the arc counts down
+  // as focused time is logged instead of filling up like a normal progress bar.
+  const segmentGroup = document.getElementById('gauge-segments');
+  if (!segmentGroup) return;
+
+  const svg = segmentGroup.closest('svg');
+  const segmentCount = 24;
+  const remainingSegments = remaining <= 0
+    ? 0
+    : Math.ceil(remainingRatio * segmentCount);
+
+  const cx = 110;
+  const cy = 120;
+  const radius = 90;
+  const stepAngle = 180 / segmentCount;
+  const segmentAngle = stepAngle * 0.68; // leaves a visible gap between segments
+
+  const pointOnArc = (angleDeg) => {
+    const angle = angleDeg * Math.PI / 180;
+    return {
+      x: cx + radius * Math.cos(angle),
+      y: cy - radius * Math.sin(angle),
+    };
+  };
+
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < segmentCount; i += 1) {
+    // Draw from the left edge of the semicircle toward the right edge.
+    // As the goal is completed, segments disappear from right to left.
+    const startAngle = 180 - (i * stepAngle);
+    const endAngle = startAngle - segmentAngle;
+    const start = pointOnArc(startAngle);
+    const end = pointOnArc(endAngle);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', start.x.toFixed(2));
+    line.setAttribute('y1', start.y.toFixed(2));
+    line.setAttribute('x2', end.x.toFixed(2));
+    line.setAttribute('y2', end.y.toFixed(2));
+    line.setAttribute(
+      'class',
+      `gauge-segment ${i < remainingSegments ? 'is-remaining' : 'is-depleted'}`
+    );
+    fragment.appendChild(line);
+  }
+
+  segmentGroup.replaceChildren(fragment);
+
+  if (svg) {
+    const status = remaining > 0
+      ? `${pct}% complete, ${formatShort(remaining)} remaining of ${formatShort(goal)} daily goal`
+      : `${pct}% complete, daily goal reached`;
+    svg.setAttribute('aria-label', status);
   }
 }
 
@@ -293,7 +322,12 @@ function applyTheme() {
   try {
     const homeToggle = document.getElementById('theme-switch-home');
     const settingsBtn = document.getElementById('theme-toggle-btn');
-    if (homeToggle) homeToggle.checked = (theme === 'light');
+    if (homeToggle) {
+      const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      homeToggle.textContent = '💡';
+      homeToggle.setAttribute('aria-label', label);
+      homeToggle.setAttribute('title', label);
+    }
     if (settingsBtn) settingsBtn.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
   } catch (e) { /* ignore */ }
   return { theme, accent };

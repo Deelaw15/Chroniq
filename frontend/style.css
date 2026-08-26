@@ -146,7 +146,7 @@ body {
   padding: 6px 10px; cursor: pointer; margin-right: 6px;
 }
 
-/* Day/Night slider switch */
+/* Compact single-button theme toggle */
 .theme-icon-btn {
   background: var(--panel-raised);
   border: 1px solid var(--border);
@@ -187,8 +187,22 @@ body {
 .gauge-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
 .gauge-goal-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* dashed gauge overlay styling */
-#gauge-dash { stroke-linecap: round; }
+/* Segmented daily-goal countdown arc */
+.goal-gauge { overflow: visible; }
+.gauge-segment {
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke 220ms ease, opacity 220ms ease;
+}
+.gauge-segment.is-remaining {
+  stroke: var(--accent);
+  opacity: 1;
+}
+.gauge-segment.is-depleted {
+  stroke: var(--border);
+  opacity: 0.62;
+}
+[data-theme="light"] .gauge-segment.is-depleted { opacity: 0.9; }
 
 /* ---------- App breakdown list ---------- */
 .app-row {
