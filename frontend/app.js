@@ -258,7 +258,61 @@ function renderTopApps(today) {
 // ============================================================
 // Rendering: hourly heatmap
 // ============================================================
-const heatColors = ['#262B32', '#2C3A3D', '#33474A', '#4FAE9D', '#7BC4B5', '#D9A441'];
+// Map accent names to a representative hex color.
+const ACCENT_COLOR_MAP = {
+  teal: '#4FAE9D',
+  blue: '#5B8DEF',
+  purple: '#9575B0',
+  rose: '#C9738F',
+  green: '#6FBF73',
+  orange: '#D9A441',
+  indigo: '#6A78D6',
+};
+
+let currentAccentName = (localStorage.getItem('focusTracker.accent') || 'teal');
+
+function applyTheme() {
+  const theme = localStorage.getItem('focusTracker.theme') || 'dark';
+  const accent = localStorage.getItem('focusTracker.accent') || 'teal';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute('data-accent', accent);
+  currentAccentName = accent;
+  // Ensure --accent CSS variable is set to the hex for use in canvases and SVG
+  const hex = ACCENT_COLOR_MAP[accent] || ACCENT_COLOR_MAP.teal;
+  document.documentElement.style.setProperty('--accent', hex);
+  return { theme, accent };
+}
+applyTheme();
+
+// Build a 6-step heatmap palette tailored to the accent. First 3 are neutral
+// dark background shades, last 2 are accent-derived, final is a highlight.
+function getHeatColorsForAccent(accentName) {
+  const accent = ACCENT_COLOR_MAP[accentName] || ACCENT_COLOR_MAP.teal;
+  // Neutral dark shades (keep consistent contrast)
+  const n1 = '#262B32';
+  const n2 = '#2C3A3D';
+  const n3 = '#33474A';
+  // Derive two accent shades by simple opacity blends (approximate lighter tints)
+  const a1 = accent;
+  // lighter tint - blend with white roughly
+  const a2 = tintHex(accent, 0.4);
+  // final highlight: a warm gold to indicate very high impact
+  const highlight = '#D9A441';
+  return [n1, n2, n3, a1, a2, highlight];
+}
+
+// Tiny helper: produce a simple tint of a hex color towards white by factor (0..1)
+function tintHex(hex, factor) {
+  // strip #
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  const nr = Math.round(r + (255 - r) * factor);
+  const ng = Math.round(g + (255 - g) * factor);
+  const nb = Math.round(b + (255 - b) * factor);
+  return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
+}
 
 function renderHeatmap(heatmap) {
   const daysEl = document.getElementById('heatmap-days');
@@ -277,6 +331,8 @@ function renderHeatmap(heatmap) {
     if (seconds <= 0 || maxSeconds <= 0) return 0;
     return Math.min(5, Math.ceil((seconds / maxSeconds) * 5));
   }
+
+  const heatColors = getHeatColorsForAccent(currentAccentName);
 
   for (const day of heatmap.days) {
     const row = document.createElement('div');
@@ -713,7 +769,71 @@ function showView(view) {
 navToday.addEventListener('click', () => showView('today'));
 navWeekly.addEventListener('click', () => showView('weekly'));
 navSettings.addEventListener('click', () => showView('settings'));
-document.getElementById('settings-toggle').addEventListener('click', () => showView('settings'));
+// Quick timer popover (opens from gear in the now-card)
+document.getElementById('settings-toggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const pop = document.getElementById('quick-timer-popover');
+  if (pop.style.display === 'none' || !pop.style.display) {
+    openQuickTimerPopover();
+  } else {
+    closeQuickTimerPopover();
+  }
+});
+
+function openQuickTimerPopover() {
+  const pop = document.getElementById('quick-timer-popover');
+  pop.style.display = 'block';
+  // populate with current settings
+  document.getElementById('quick-focus').value = settings.focusMin;
+  document.getElementById('quick-short').value = settings.shortBreakMin;
+  document.getElementById('quick-long').value = settings.longBreakMin;
+  // wire buttons
+  document.getElementById('quick-apply').onclick = () => {
+    const f = parseInt(document.getElementById('quick-focus').value, 10);
+    const s = parseInt(document.getElementById('quick-short').value, 10);
+    const l = parseInt(document.getElementById('quick-long').value, 10);
+    if (!isNaN(f) && f > 0) settings.focusMin = f;
+    if (!isNaN(s) && s > 0) settings.shortBreakMin = s;
+    if (!isNaN(l) && l > 0) settings.longBreakMin = l;
+    persistSettings();
+    applySettingsToInputs();
+    renderCycleDots();
+    closeQuickTimerPopover();
+  };
+  document.getElementById('quick-start-now').onclick = () => {
+    const f = parseInt(document.getElementById('quick-focus').value, 10);
+    if (!isNaN(f) && f > 0) {
+      // start an immediate manual session with this duration
+      startSession(null, null, f);
+      closeQuickTimerPopover();
+    }
+  };
+  document.getElementById('quick-timer-close').onclick = closeQuickTimerPopover;
+
+  // close on outside click or Escape
+  setTimeout(() => {
+    window.addEventListener('click', outsideClickListener);
+    window.addEventListener('keydown', escapeListener);
+  }, 0);
+}
+
+function closeQuickTimerPopover() {
+  const pop = document.getElementById('quick-timer-popover');
+  if (!pop) return;
+  pop.style.display = 'none';
+  window.removeEventListener('click', outsideClickListener);
+  window.removeEventListener('keydown', escapeListener);
+}
+
+function outsideClickListener(e) {
+  const pop = document.getElementById('quick-timer-popover');
+  const toggle = document.getElementById('settings-toggle');
+  if (!pop.contains(e.target) && e.target !== toggle) closeQuickTimerPopover();
+}
+
+function escapeListener(e) {
+  if (e.key === 'Escape') closeQuickTimerPopover();
+}
 
 // ============================================================
 // Settings page
