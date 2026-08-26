@@ -203,6 +203,49 @@ body {
 
 .frame-footer { text-align: center; font-size: 11px; color: var(--text-dim); font-family: var(--font-display); margin-top: 4px; }
 
+/* ---------- Settings page ---------- */
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border); gap: 16px;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.settings-row-hint { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.theme-toggle-btn {
+  background: var(--panel-raised); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  padding: 8px 16px; cursor: pointer;
+}
+.accent-swatches { display: flex; gap: 8px; }
+.accent-swatch {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer;
+}
+.accent-swatch.selected { border-color: var(--text); }
+
+/* ---------- Light theme ---------- */
+[data-theme="light"] {
+  --bg: #F3F1EC;
+  --frame: #FFFFFF;
+  --panel: #FBFAF7;
+  --panel-raised: #EFEDE6;
+  --border: #DEDAD0;
+  --text: #232620;
+  --text-secondary: #5C6058;
+  --text-dim: #93968D;
+}
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 15% 10%, #cfe7e2 0%, transparent 45%),
+    radial-gradient(circle at 85% 90%, #f0e2c2 0%, transparent 40%),
+    var(--bg);
+}
+
+/* ---------- Accent color variants ---------- */
+[data-accent="blue"] { --accent: #5B8DEF; --accent-soft: #3E6BC4; }
+[data-accent="purple"] { --accent: #9575B0; --accent-soft: #7A5C92; }
+[data-accent="rose"] { --accent: #C9738F; --accent-soft: #A85A73; }
+
 /* ---------- Weekly view ---------- */
 .chart-block { position: relative; height: 220px; }
 .day-table-row {

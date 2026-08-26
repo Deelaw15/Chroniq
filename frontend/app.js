@@ -1,3 +1,16 @@
+// ============================================================
+// Theme & accent color (applied first, before anything renders,
+// to avoid a flash of the wrong theme)
+// ============================================================
+function applyTheme() {
+  const theme = localStorage.getItem('focusTracker.theme') || 'dark';
+  const accent = localStorage.getItem('focusTracker.accent') || 'teal';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute('data-accent', accent);
+  return { theme, accent };
+}
+applyTheme();
+
 const API_BASE = window.location.origin; // same-origin, served by FastAPI at /dashboard
 
 // ============================================================
@@ -210,9 +223,9 @@ function renderGauge(today) {
   const x = cx - r * Math.cos(angle);
   const y = cy - r * Math.sin(angle);
   const largeArc = pct > 50 ? 1 : 0;
-  document.getElementById('gauge-arc').setAttribute(
-    'd', `M 20 120 A ${r} ${r} 0 ${largeArc} 1 ${x.toFixed(1)} ${y.toFixed(1)}`
-  );
+  const arcEl = document.getElementById('gauge-arc');
+  arcEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 ${largeArc} 1 ${x.toFixed(1)} ${y.toFixed(1)}`);
+  arcEl.setAttribute('stroke', getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
 }
 
 // ============================================================
@@ -350,9 +363,8 @@ function persistSettings() {
   localStorage.setItem('focusTracker.pomodoroSettings', JSON.stringify(settings));
 }
 
-const settingsToggle = document.getElementById('settings-toggle');
-const settingsForm = document.getElementById('settings-form');
-settingsToggle.addEventListener('click', () => settingsForm.classList.toggle('open'));
+// Note: #settings-toggle (the gear icon) is wired further down to
+// navigate to the Settings page - see the nav/view-switching section.
 
 ['set-focus', 'set-short', 'set-cycles', 'set-long'].forEach(id => {
   document.getElementById(id).addEventListener('change', () => {
@@ -648,6 +660,7 @@ updateUI();
 // ============================================================
 const viewToday = document.getElementById('view-today');
 const viewWeekly = document.getElementById('view-weekly');
+const viewSettings = document.getElementById('view-settings');
 const navToday = document.getElementById('nav-today');
 const navWeekly = document.getElementById('nav-weekly');
 const navSettings = document.getElementById('nav-settings');
@@ -655,17 +668,75 @@ const navSettings = document.getElementById('nav-settings');
 function showView(view) {
   viewToday.style.display = (view === 'today') ? '' : 'none';
   viewWeekly.style.display = (view === 'weekly') ? '' : 'none';
+  viewSettings.style.display = (view === 'settings') ? '' : 'none';
   navToday.classList.toggle('active', view === 'today');
   navWeekly.classList.toggle('active', view === 'weekly');
+  navSettings.classList.toggle('active', view === 'settings');
   if (view === 'weekly') loadWeeklyPage();
+  if (view === 'settings') loadSettingsPage();
 }
 
 navToday.addEventListener('click', () => showView('today'));
 navWeekly.addEventListener('click', () => showView('weekly'));
-navSettings.addEventListener('click', () => {
-  // No dedicated Settings page yet - Pomodoro settings live under the
-  // gear icon on the Focus Session card for now.
-  settingsForm.classList.add('open');
+navSettings.addEventListener('click', () => showView('settings'));
+document.getElementById('settings-toggle').addEventListener('click', () => showView('settings'));
+
+// ============================================================
+// Settings page
+// ============================================================
+function loadSettingsPage() {
+  // Theme toggle button state
+  const theme = localStorage.getItem('focusTracker.theme') || 'dark';
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  themeBtn.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+
+  // Accent swatch selected state
+  const accent = localStorage.getItem('focusTracker.accent') || 'teal';
+  document.querySelectorAll('.accent-swatch').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.accent === accent);
+  });
+
+  // Daily goal input, pre-filled with the current value
+  document.getElementById('settings-goal-hours').value = (getDailyGoalSeconds() / 3600).toFixed(1);
+
+  // Pomodoro inputs already reflect `settings` via applySettingsToInputs()
+  applySettingsToInputs();
+}
+
+document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+  const current = localStorage.getItem('focusTracker.theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('focusTracker.theme', next);
+  applyTheme();
+  loadSettingsPage();
+});
+
+document.querySelectorAll('.accent-swatch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    localStorage.setItem('focusTracker.accent', btn.dataset.accent);
+    applyTheme();
+    loadSettingsPage();
+    // Accent affects the gauge stroke and weekly chart bar color, both
+    // set inline rather than via CSS - refresh whichever page is visible
+    // so the change is reflected immediately instead of on next reload.
+    if (viewToday.style.display !== 'none') loadAll();
+    if (weeklyChart) { weeklyChart.destroy(); weeklyChart = null; loadWeeklyPage(); }
+  });
+});
+
+document.getElementById('settings-goal-save').addEventListener('click', () => {
+  const hours = parseFloat(document.getElementById('settings-goal-hours').value);
+  if (isNaN(hours) || hours <= 0) return;
+  setDailyGoalSeconds(Math.round(hours * 3600));
+  if (viewToday.style.display !== 'none') renderGauge({ total_active_seconds: 0 }); // will be corrected by next loadAll tick
+  loadAll();
+});
+
+document.getElementById('settings-reset-btn').addEventListener('click', () => {
+  if (!confirm('Reset theme, accent, daily goal, timer settings, and tasks to defaults? Your tracked activity data is not affected.')) return;
+  ['focusTracker.theme', 'focusTracker.accent', 'focusTracker.dailyGoalSeconds', 'focusTracker.pomodoroSettings', 'focusTracker.tasks']
+    .forEach(key => localStorage.removeItem(key));
+  location.reload();
 });
 
 // ============================================================
@@ -789,10 +860,12 @@ function renderWeeklyChart(dailyTotals) {
 
   const labels = dailyTotals.map(d => weekdayName(d.date).slice(0, 3));
   const hours = dailyTotals.map(d => +(d.active_seconds / 3600).toFixed(2));
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
 
   if (weeklyChart) {
     weeklyChart.data.labels = labels;
     weeklyChart.data.datasets[0].data = hours;
+    weeklyChart.data.datasets[0].backgroundColor = accentColor;
     weeklyChart.update();
     return;
   }
@@ -804,7 +877,7 @@ function renderWeeklyChart(dailyTotals) {
       datasets: [{
         label: 'Active hours',
         data: hours,
-        backgroundColor: '#4FAE9D',
+        backgroundColor: accentColor,
         borderRadius: 4,
         maxBarThickness: 40,
       }],
