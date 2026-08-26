@@ -359,13 +359,24 @@ function renderHeatmap(heatmap) {
   };
   heatColors = heatColors.slice().sort((a,b) => luminance(a) - luminance(b));
 
-  // Update legend swatches to reflect the computed palette (light->dark)
+  // Update legend swatches and labels to reflect the computed palette (light->dark)
   try {
-    const swatches = document.querySelectorAll('.heatmap-legend .heat-swatch');
+    const legend = document.querySelector('.heatmap-legend');
+    const swatches = legend ? legend.querySelectorAll('.heat-swatch') : null;
     if (swatches && swatches.length > 0) {
+      // Compute indices mapping swatches left->right to light->dark
       for (let i = 0; i < swatches.length; i++) {
         const idx = Math.round(i * (heatColors.length - 1) / Math.max(1, swatches.length - 1));
         swatches[i].style.background = heatColors[idx];
+      }
+      // Color the 'Less' and 'More' labels to match the ends of the ramp
+      const labels = legend.querySelectorAll('span');
+      if (labels && labels.length >= (swatches.length + 2)) {
+        // first span is 'Less', last span is 'More'
+        const lessLabel = labels[0];
+        const moreLabel = labels[labels.length - 1];
+        lessLabel.style.color = heatColors[0];
+        moreLabel.style.color = heatColors[heatColors.length - 1];
       }
     }
   } catch (e) { /* ignore if legend not present */ }
