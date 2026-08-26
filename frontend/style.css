@@ -152,6 +152,7 @@ body {
 .kpi-value { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
 .kpi-value.good { color: var(--accent); }
 .kpi-value.warn { color: var(--danger); }
+.kpi-qualifier { font-size: 11px; font-weight: 500; color: var(--text-dim); }
 .kpi-bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
 .kpi-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
 
@@ -201,6 +202,18 @@ body {
 .heat-swatch { width: 10px; height: 10px; border-radius: 2px; }
 
 .frame-footer { text-align: center; font-size: 11px; color: var(--text-dim); font-family: var(--font-display); margin-top: 4px; }
+
+/* ---------- Weekly view ---------- */
+.chart-block { position: relative; height: 220px; }
+.day-table-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.day-table-row:last-child { border-bottom: none; }
+.day-table-name { color: var(--text); font-weight: 600; }
+.day-table-date { color: var(--text-dim); font-family: var(--font-display); font-size: 11px; margin-left: 6px; }
+.day-table-value { font-family: var(--font-display); color: var(--text-secondary); }
+.nav-item { cursor: pointer; }
 
 /* ---------- Insights panel ---------- */
 .insights-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
@@ -303,6 +316,19 @@ body {
 .task-info { flex: 1; min-width: 0; }
 .task-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
 .task-tag { font-size: 11px; color: var(--text-dim); font-family: var(--font-display); }
+.task-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.task-icon-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+}
+.task-icon-btn:hover { color: var(--text-secondary); }
+.task-delete-btn:hover { color: var(--danger); border-color: var(--danger); }
 .task-start-btn {
   font-family: var(--font-body);
   font-size: 12px; font-weight: 600;

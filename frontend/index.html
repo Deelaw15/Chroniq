@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -14,12 +15,12 @@
 
   <nav class="sidebar">
     <div class="avatar">◈</div>
-    <div class="nav-item active"><span class="nav-icon">▤</span>Today</div>
-    <div class="nav-item"><span class="nav-icon">▦</span>Weekly</div>
-    <div class="nav-item"><span class="nav-icon">⚙</span>Settings</div>
+    <div class="nav-item active" id="nav-today"><span class="nav-icon">▤</span>Today</div>
+    <div class="nav-item" id="nav-weekly"><span class="nav-icon">▦</span>Weekly</div>
+    <div class="nav-item" id="nav-settings"><span class="nav-icon">⚙</span>Settings</div>
   </nav>
 
-  <div class="main-col">
+  <div class="main-col" id="view-today">
 
     <!-- Top bar: single consolidated readout + session controls -->
     <div class="top-bar">
@@ -55,9 +56,9 @@
         <div class="kpi-value good" id="kpi-break-ratio">—</div>
         <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-break-ratio-bar" style="width:0%"></div></div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" title="Counts every time you moved from one app to a different one today. Frequent alt-tabbing between apps adds up fast - it's not a count of how many apps you have.">
         <div class="kpi-label">App Switches</div>
-        <div class="kpi-value warn" id="kpi-switches">—</div>
+        <div class="kpi-value warn" id="kpi-switches">— <span class="kpi-qualifier" id="kpi-switches-qualifier"></span></div>
         <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-switches-bar" style="width:0%;background:var(--danger)"></div></div>
       </div>
       <div class="kpi-card">
@@ -122,6 +123,61 @@
     </div>
 
     <div class="frame-footer" id="status-text">Loading…</div>
+  </div>
+
+  <!-- Weekly view -->
+  <div class="main-col" id="view-weekly" style="display:none;">
+    <div class="top-bar">
+      <span class="brand-title">Focus Tracker</span>
+      <div class="focus-readout">
+        <span class="value" id="weekly-total">—</span>
+        <span class="label">Active this week</span>
+      </div>
+      <div class="idle-inline" id="weekly-range">—</div>
+      <div class="spacer"></div>
+      <button class="refresh-btn" id="weekly-refresh-btn">↻ Refresh</button>
+    </div>
+
+    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="kpi-card">
+        <div class="kpi-label">This Week</div>
+        <div class="kpi-value" id="weekly-this-total">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="weekly-this-bar" style="width:0%"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Last Week</div>
+        <div class="kpi-value" id="weekly-last-total">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="weekly-last-bar" style="width:0%;background:var(--text-dim)"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vs Last Week</div>
+        <div class="kpi-value" id="weekly-delta">—</div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="weekly-delta-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <section class="panel" style="grid-column: 1 / -1;">
+        <span class="panel-title">Daily Active Time</span>
+        <div class="chart-block">
+          <canvas id="weekly-chart" height="200"></canvas>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="panel-title">Top Apps This Week</span>
+        <div id="weekly-top-apps">
+          <div class="breakdown-empty" style="font-size:13px;color:var(--text-dim);">Loading…</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="panel-title">Day By Day</span>
+        <div id="weekly-day-table"></div>
+      </section>
+    </div>
+
+    <div class="frame-footer" id="weekly-status-text">Loading…</div>
   </div>
 
   <!-- Right rail -->

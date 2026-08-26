@@ -101,7 +101,14 @@ function renderKPIs(today, week) {
   document.getElementById('kpi-break-ratio').textContent = `${breakPct}%`;
   document.getElementById('kpi-break-ratio-bar').style.width = `${breakPct}%`;
 
-  document.getElementById('kpi-switches').textContent = today.app_switch_count;
+  document.getElementById('kpi-switches').firstChild.textContent = `${today.app_switch_count} `;
+  const switchRatio = week.avg_app_switch_count > 0
+    ? today.app_switch_count / week.avg_app_switch_count
+    : (today.app_switch_count > 0 ? 2 : 0);
+  let qualifier = 'Typical';
+  if (switchRatio >= 1.5) qualifier = 'High';
+  else if (switchRatio <= 0.5) qualifier = 'Low';
+  document.getElementById('kpi-switches-qualifier').textContent = qualifier;
   const switchPct = week.avg_app_switch_count > 0
     ? Math.min(100, (today.app_switch_count / (week.avg_app_switch_count * 2)) * 100)
     : 0;
@@ -553,8 +560,11 @@ function persistTasks() {
 }
 
 function attachTaskRowHandlers(row) {
-  const btn = row.querySelector('.task-start-btn');
-  btn.addEventListener('click', () => {
+  const startBtn = row.querySelector('.task-start-btn');
+  const editBtn = row.querySelector('.task-edit-btn');
+  const deleteBtn = row.querySelector('.task-delete-btn');
+
+  startBtn.addEventListener('click', () => {
     const isThisTaskActive = row.classList.contains('active-task');
     if (isThisTaskActive) {
       stopSession();
@@ -566,8 +576,35 @@ function attachTaskRowHandlers(row) {
     });
     if (sessionState !== 'idle') clearInterval(timerInterval);
     row.classList.add('active-task');
-    btn.textContent = '■ Stop';
+    startBtn.textContent = '■ Stop';
     startSession(row.dataset.task, row.dataset.tag);
+  });
+
+  editBtn.addEventListener('click', () => {
+    const newName = prompt('Task name:', row.dataset.task);
+    if (!newName || !newName.trim()) return;
+    const newTag = prompt('App / detail (optional):', row.dataset.tag || '');
+
+    row.dataset.task = newName.trim();
+    row.dataset.tag = (newTag || '').trim();
+    row.querySelector('.task-name').textContent = row.dataset.task;
+    row.querySelector('.task-tag').textContent = row.dataset.tag || 'No detail added';
+
+    // If this task is the one currently running, keep the live session
+    // display in sync with the rename instead of showing stale text.
+    if (row.classList.contains('active-task')) {
+      nowName.textContent = row.dataset.task;
+      nowSub.textContent = row.dataset.tag;
+    }
+    persistTasks();
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    const wasActive = row.classList.contains('active-task');
+    if (!confirm(`Delete task "${row.dataset.task}"?`)) return;
+    row.remove();
+    if (wasActive) stopSession();
+    persistTasks();
   });
 }
 
@@ -581,7 +618,11 @@ function buildTaskRow(name, tag) {
       <div class="task-name">${name}</div>
       <div class="task-tag">${tag || 'No detail added'}</div>
     </div>
-    <button class="task-start-btn">▶ Start</button>
+    <div class="task-actions">
+      <button class="task-icon-btn task-edit-btn" title="Edit task">✎</button>
+      <button class="task-icon-btn task-delete-btn" title="Delete task">✕</button>
+      <button class="task-start-btn">▶ Start</button>
+    </div>
   `;
   attachTaskRowHandlers(row);
   return row;
@@ -601,3 +642,186 @@ document.getElementById('add-task-btn').addEventListener('click', () => {
 });
 
 updateUI();
+
+// ============================================================
+// Nav / view switching
+// ============================================================
+const viewToday = document.getElementById('view-today');
+const viewWeekly = document.getElementById('view-weekly');
+const navToday = document.getElementById('nav-today');
+const navWeekly = document.getElementById('nav-weekly');
+const navSettings = document.getElementById('nav-settings');
+
+function showView(view) {
+  viewToday.style.display = (view === 'today') ? '' : 'none';
+  viewWeekly.style.display = (view === 'weekly') ? '' : 'none';
+  navToday.classList.toggle('active', view === 'today');
+  navWeekly.classList.toggle('active', view === 'weekly');
+  if (view === 'weekly') loadWeeklyPage();
+}
+
+navToday.addEventListener('click', () => showView('today'));
+navWeekly.addEventListener('click', () => showView('weekly'));
+navSettings.addEventListener('click', () => {
+  // No dedicated Settings page yet - Pomodoro settings live under the
+  // gear icon on the Focus Session card for now.
+  settingsForm.classList.add('open');
+});
+
+// ============================================================
+// Weekly page
+// ============================================================
+let weeklyChart = null;
+
+function mostRecentMonday() {
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0) ? 6 : day - 1; // days since Monday
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+async function loadWeeklyPage() {
+  const statusEl = document.getElementById('weekly-status-text');
+  statusEl.textContent = 'Loading…';
+
+  const thisMonday = mostRecentMonday();
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(lastMonday.getDate() - 7);
+  const lastMondayStr = lastMonday.toISOString().slice(0, 10);
+
+  let thisWeek, lastWeek, dayDetails;
+  try {
+    [thisWeek, lastWeek] = await Promise.all([
+      fetchJSON(`/summary/week?start_date=${thisMonday}`),
+      fetchJSON(`/summary/week?start_date=${lastMondayStr}`),
+    ]);
+    // Per-day detail (idle time, top app) isn't in the weekly summary,
+    // so fetch each day individually - reuses the existing /summary/day
+    // endpoint rather than adding a new one just for this table.
+    dayDetails = await Promise.all(
+      thisWeek.daily_totals.map(d => fetchJSON(`/summary/day?target_date=${d.date}`))
+    );
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Could not load weekly data.';
+    statusEl.style.color = '#C97B5E';
+    return;
+  }
+
+  const thisTotal = thisWeek.daily_totals.reduce((a, d) => a + d.active_seconds, 0);
+  const lastTotal = lastWeek.daily_totals.reduce((a, d) => a + d.active_seconds, 0);
+
+  document.getElementById('weekly-total').textContent = formatHMS(thisTotal);
+  document.getElementById('weekly-range').textContent = `${thisWeek.start_date} → ${thisWeek.end_date}`;
+  document.getElementById('weekly-this-total').textContent = formatShort(thisTotal);
+  document.getElementById('weekly-last-total').textContent = formatShort(lastTotal);
+
+  const maxTotal = Math.max(thisTotal, lastTotal, 1);
+  document.getElementById('weekly-this-bar').style.width = `${(thisTotal / maxTotal) * 100}%`;
+  document.getElementById('weekly-last-bar').style.width = `${(lastTotal / maxTotal) * 100}%`;
+
+  const deltaEl = document.getElementById('weekly-delta');
+  const deltaBar = document.getElementById('weekly-delta-bar');
+  if (lastTotal > 0) {
+    const pctDelta = ((thisTotal - lastTotal) / lastTotal) * 100;
+    const sign = pctDelta >= 0 ? '+' : '';
+    deltaEl.textContent = `${sign}${Math.round(pctDelta)}%`;
+    deltaEl.className = 'kpi-value ' + (pctDelta >= 0 ? 'good' : 'warn');
+    deltaBar.style.width = `${Math.min(100, Math.abs(pctDelta))}%`;
+    deltaBar.style.background = pctDelta >= 0 ? 'var(--accent)' : 'var(--danger)';
+  } else {
+    deltaEl.textContent = '—';
+    deltaBar.style.width = '0%';
+  }
+
+  // Top apps this week
+  const topAppsEl = document.getElementById('weekly-top-apps');
+  if (thisWeek.top_apps.length === 0) {
+    topAppsEl.innerHTML = '<div style="font-size:13px;color:var(--text-dim);">No activity recorded this week.</div>';
+  } else {
+    const maxApp = Math.max(...thisWeek.top_apps.map(a => a.total_seconds));
+    topAppsEl.innerHTML = thisWeek.top_apps.slice(0, 5).map((item, idx) => {
+      const pct = maxApp > 0 ? (item.total_seconds / maxApp) * 100 : 0;
+      const color = colorForApp(item.app_name);
+      return `
+        <div class="app-row">
+          <span class="app-rank">${idx + 1}</span>
+          <div class="app-bar-track"><div class="app-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="app-name" title="${item.app_name}">${item.app_name}</span>
+          <span class="app-time">${formatShort(item.total_seconds)}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Day-by-day table
+  const dayTableEl = document.getElementById('weekly-day-table');
+  dayTableEl.innerHTML = dayDetails.map(day => {
+    const dayName = weekdayName(day.date);
+    const topApp = day.app_breakdown.length > 0 ? day.app_breakdown[0].app_name : '—';
+    return `
+      <div class="day-table-row">
+        <div>
+          <span class="day-table-name">${dayName}</span>
+          <span class="day-table-date">${day.date}</span>
+        </div>
+        <div class="day-table-value">${formatShort(day.total_active_seconds)} · ${topApp}</div>
+      </div>
+    `;
+  }).join('');
+
+  renderWeeklyChart(thisWeek.daily_totals);
+  statusEl.textContent = `Last updated ${new Date().toLocaleTimeString()}`;
+  statusEl.style.color = '';
+}
+
+function renderWeeklyChart(dailyTotals) {
+  const canvas = document.getElementById('weekly-chart');
+  if (typeof Chart === 'undefined') {
+    canvas.replaceWith(Object.assign(document.createElement('div'), {
+      style: 'font-size:13px;color:var(--text-dim);',
+      textContent: 'Chart library failed to load - check your internet connection.',
+    }));
+    return;
+  }
+
+  const labels = dailyTotals.map(d => weekdayName(d.date).slice(0, 3));
+  const hours = dailyTotals.map(d => +(d.active_seconds / 3600).toFixed(2));
+
+  if (weeklyChart) {
+    weeklyChart.data.labels = labels;
+    weeklyChart.data.datasets[0].data = hours;
+    weeklyChart.update();
+    return;
+  }
+
+  weeklyChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Active hours',
+        data: hours,
+        backgroundColor: '#4FAE9D',
+        borderRadius: 4,
+        maxBarThickness: 40,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y.toFixed(1)}h active` } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8B92A0', font: { family: 'IBM Plex Mono', size: 11 } } },
+        y: { beginAtZero: true, grid: { color: '#2C3138' }, ticks: { color: '#8B92A0', font: { family: 'IBM Plex Mono', size: 11 } } },
+      },
+    },
+  });
+}
+
+document.getElementById('weekly-refresh-btn').addEventListener('click', loadWeeklyPage);

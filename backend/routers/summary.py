@@ -41,10 +41,11 @@ def summary_week(
 @router.get("/heatmap", response_model=HeatmapOut)
 def summary_heatmap(
     start_date: date | None = Query(
-        None, description="YYYY-MM-DD. Defaults to 6 days ago (rolling week ending today)."
+        None, description="YYYY-MM-DD, must be a Monday. Defaults to the Monday of the current calendar week."
     ),
     db: Session = Depends(get_db),
 ):
     if start_date is None:
-        start_date = date.today() - timedelta(days=6)
+        today = date.today()
+        start_date = today - timedelta(days=today.weekday())  # Monday=0 ... Sunday=6
     return aggregation.get_hourly_heatmap(db, start_date)
