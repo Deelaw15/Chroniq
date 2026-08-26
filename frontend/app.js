@@ -278,10 +278,20 @@ applyTheme();
 // dark background shades, last 2 are accent-derived, final is a highlight.
 function getHeatColorsForAccent(accentName) {
   const accent = ACCENT_COLOR_MAP[accentName] || ACCENT_COLOR_MAP.teal;
-  // Neutral dark shades (keep consistent contrast)
-  const n1 = '#262B32';
-  const n2 = '#2C3A3D';
-  const n3 = '#33474A';
+  // Choose neutral base shades depending on theme
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  let n1, n2, n3;
+  if (theme === 'light') {
+    // light neutrals for light theme (near-white cells for low activity)
+    n1 = '#ffffff';
+    n2 = '#f3f3f3';
+    n3 = '#e6e6e6';
+  } else {
+    // dark neutrals for dark theme
+    n1 = '#262B32';
+    n2 = '#2C3A3D';
+    n3 = '#33474A';
+  }
   // Derive two accent shades by simple opacity blends (approximate lighter tints)
   // derive a small accent ramp: slightly darker, lighter tint, and a brighter highlight
   const a_darker = shadeHex(accent, 0.18);
@@ -334,6 +344,17 @@ function renderHeatmap(heatmap) {
   }
 
   const heatColors = getHeatColorsForAccent(currentAccentName);
+
+  // Update legend swatches to reflect the computed palette
+  try {
+    const swatches = document.querySelectorAll('.heatmap-legend .heat-swatch');
+    if (swatches && swatches.length > 0) {
+      for (let i = 0; i < swatches.length; i++) {
+        const idx = Math.round(i * (heatColors.length - 1) / Math.max(1, swatches.length - 1));
+        swatches[i].style.background = heatColors[idx];
+      }
+    }
+  } catch (e) { /* ignore if legend not present */ }
 
   for (const day of heatmap.days) {
     const row = document.createElement('div');
