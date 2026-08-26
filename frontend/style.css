@@ -140,6 +140,12 @@ body {
   padding: 9px 16px; border-radius: 8px;
 }
 
+.theme-toggle-btn {
+  background: var(--panel-raised); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  padding: 6px 10px; cursor: pointer; margin-right: 6px;
+}
+
 /* ---------- KPI row - full width, prominent, at top ---------- */
 .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .kpi-card {

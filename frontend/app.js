@@ -270,6 +270,13 @@ function applyTheme() {
   // Ensure --accent CSS variable is set to the hex for use in canvases and SVG
   const hex = ACCENT_COLOR_MAP[accent] || ACCENT_COLOR_MAP.teal;
   document.documentElement.style.setProperty('--accent', hex);
+  // Update quick theme toggle icons (home and settings) to reflect current theme
+  try {
+    const homeBtn = document.getElementById('theme-switch-home');
+    const settingsBtn = document.getElementById('theme-toggle-btn');
+    if (homeBtn) homeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+    if (settingsBtn) settingsBtn.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+  } catch (e) { /* ignore */ }
   return { theme, accent };
 }
 applyTheme();
@@ -912,6 +919,19 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
   applyTheme();
   loadSettingsPage();
 });
+
+// Quick theme toggle on the top bar
+const homeThemeBtn = document.getElementById('theme-switch-home');
+if (homeThemeBtn) {
+  homeThemeBtn.addEventListener('click', () => {
+    const current = localStorage.getItem('focusTracker.theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('focusTracker.theme', next);
+    applyTheme();
+    // update any visible settings controls
+    loadSettingsPage();
+  });
+}
 
 document.querySelectorAll('.accent-swatch').forEach(btn => {
   btn.addEventListener('click', () => {
