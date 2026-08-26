@@ -940,63 +940,15 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
 });
 
 // Quick theme toggle on the top bar
-const homeThemeToggle = document.getElementById('theme-switch-home');
-if (homeThemeToggle) {
-  homeThemeToggle.addEventListener('change', () => {
-    const next = homeThemeToggle.checked ? 'light' : 'dark';
+const homeThemeBtn = document.getElementById('theme-switch-home');
+if (homeThemeBtn) {
+  homeThemeBtn.addEventListener('click', () => {
+    const current = localStorage.getItem('focusTracker.theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
     localStorage.setItem('focusTracker.theme', next);
     applyTheme();
     loadSettingsPage();
   });
-
-  // Make the switch-ball draggable for a slide interaction (pointer events)
-  (function makeSliderDraggable() {
-    const label = document.querySelector('label[for="theme-switch-home"]');
-    if (!label) return;
-    const ball = label.querySelector('.switch-ball');
-    if (!ball) return;
-
-    let dragging = false;
-    let startX = 0;
-    let rect = null;
-
-    function onPointerDown(e) {
-      dragging = true;
-      startX = e.clientX;
-      rect = label.getBoundingClientRect();
-      ball.setPointerCapture && ball.setPointerCapture(e.pointerId);
-      ball.style.transition = 'none';
-      e.preventDefault();
-    }
-
-    function onPointerMove(e) {
-      if (!dragging || !rect) return;
-      const dx = e.clientX - rect.left; // position inside label
-      const t = Math.max(0, Math.min(1, (dx - 6) / (rect.width - 34))); // normalize with padding
-      const translate = Math.round(t * 18); // same translate used in CSS
-      ball.style.transform = `translateX(${translate}px)`;
-    }
-
-    function finishDrag(e) {
-      if (!dragging) return;
-      dragging = false;
-      ball.style.transition = '';
-      // decide based on final ball position
-      const dx = (e.clientX || startX) - rect.left;
-      const t = Math.max(0, Math.min(1, (dx - 6) / (rect.width - 34)));
-      const next = t >= 0.5 ? 'light' : 'dark';
-      homeThemeToggle.checked = (next === 'light');
-      localStorage.setItem('focusTracker.theme', next);
-      applyTheme();
-      loadSettingsPage();
-      try { ball.releasePointerCapture && ball.releasePointerCapture(e.pointerId); } catch(_) {}
-    }
-
-    ball.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', finishDrag);
-    window.addEventListener('pointercancel', finishDrag);
-  })();
 }
 
 document.querySelectorAll('.accent-swatch').forEach(btn => {

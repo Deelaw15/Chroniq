@@ -147,24 +147,18 @@ body {
 }
 
 /* Day/Night slider switch */
-.theme-switch { display: inline-block; margin-right: 8px; }
-.theme-switch input { display: none; }
-.theme-switch-label {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--panel-raised); border: 1px solid var(--border);
-  padding: 4px; border-radius: 999px; cursor: pointer; height: 30px;
+.theme-icon-btn {
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  cursor: pointer; margin-right: 6px;
+  font-size: 16px;
+  transition: background 120ms ease, transform 120ms ease;
 }
-.theme-switch-label .icon-day, .theme-switch-label .icon-night { font-size: 14px; opacity: 0.6; }
-.theme-switch-label .switch-ball {
-  width: 28px; height: 22px; background: var(--panel); border-radius: 999px; display:block; position:relative;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.08) inset; transition: transform 180ms ease, background 180ms ease;
-}
-.theme-switch input:checked + .theme-switch-label { background: var(--panel); }
-.theme-switch input:checked + .theme-switch-label .switch-ball { transform: translateX(18px); background: var(--accent); }
-.theme-switch input:checked + .theme-switch-label .icon-day { opacity: 0.4; }
-.theme-switch input:checked + .theme-switch-label .icon-night { opacity: 1; }
-.theme-switch input:not(:checked) + .theme-switch-label .icon-day { opacity: 1; }
-.theme-switch input:not(:checked) + .theme-switch-label .icon-night { opacity: 0.4; }
+.theme-icon-btn:hover { background: var(--panel); transform: translateY(-1px); }
 
 /* ---------- KPI row - full width, prominent, at top ---------- */
 .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
