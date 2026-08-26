@@ -292,12 +292,12 @@ function getHeatColorsForAccent(accentName) {
     n2 = '#2C3A3D';
     n3 = '#33474A';
   }
-  // Derive two accent shades by simple opacity blends (approximate lighter tints)
-  // derive a small accent ramp: slightly darker, lighter tint, and a brighter highlight
-  const a_darker = shadeHex(accent, 0.18);
-  const a_lighter = tintHex(accent, 0.35);
-  const a_highlight = tintHex(accent, 0.65);
-  return [n1, n2, n3, a_darker, a_lighter, a_highlight];
+  // derive an accent ramp: light tint -> mid tint -> darker shade
+  const a_light = tintHex(accent, 0.45);
+  const a_mid = tintHex(accent, 0.25);
+  const a_dark = shadeHex(accent, 0.18);
+  // Return ordered palette: least-intense -> most-intense
+  return [n1, n2, n3, a_light, a_mid, a_dark];
 }
 
 // Tiny helper: produce a simple tint of a hex color towards white by factor (0..1)
@@ -347,39 +347,40 @@ function renderHeatmap(heatmap) {
     return Math.min(5, Math.max(1, Math.ceil(pct * 5)));
   }
 
-  // Get palette and order it light -> dark for both mapping and legend
-  let heatColors = getHeatColorsForAccent(currentAccentName);
-  const luminance = (hex) => {
-    const h = hex.replace('#','');
-    const r = parseInt(h.substring(0,2),16)/255;
-    const g = parseInt(h.substring(2,4),16)/255;
-    const b = parseInt(h.substring(4,6),16)/255;
-    const srgb = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
-    return 0.2126*srgb(r) + 0.7152*srgb(g) + 0.0722*srgb(b);
-  };
-  heatColors = heatColors.slice().sort((a,b) => luminance(a) - luminance(b));
+  // Get palette (ordered least->most intense) and prepare mixing helpers
+  const heatColors = getHeatColorsForAccent(currentAccentName);
+  const lightest = heatColors[0];
+  const darkest = heatColors[heatColors.length - 1];
 
-  // Update legend swatches and labels to reflect the computed palette (light->dark)
+  function mixHex(h1, h2, t) {
+    const p = (hex) => {
+      const h = hex.replace('#','');
+      return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+    };
+    const a = p(h1), b = p(h2);
+    const r = Math.round(a[0] + (b[0]-a[0]) * t);
+    const g = Math.round(a[1] + (b[1]-a[1]) * t);
+    const bl = Math.round(a[2] + (b[2]-a[2]) * t);
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
+  }
+
+  // Update legend swatches to show smooth ramp (left=less, right=more)
   try {
     const legend = document.querySelector('.heatmap-legend');
     const swatches = legend ? legend.querySelectorAll('.heat-swatch') : null;
     if (swatches && swatches.length > 0) {
-      // Compute indices mapping swatches left->right to light->dark
       for (let i = 0; i < swatches.length; i++) {
-        const idx = Math.round(i * (heatColors.length - 1) / Math.max(1, swatches.length - 1));
-        swatches[i].style.background = heatColors[idx];
+        const t = (swatches.length === 1) ? 0 : (i / (swatches.length - 1));
+        swatches[i].style.background = mixHex(lightest, darkest, t);
       }
-      // Color the 'Less' and 'More' labels to match the ends of the ramp
       const labels = legend.querySelectorAll('span');
       if (labels && labels.length >= (swatches.length + 2)) {
-        // first span is 'Less', last span is 'More'
-        const lessLabel = labels[0];
-        const moreLabel = labels[labels.length - 1];
-        lessLabel.style.color = heatColors[0];
-        moreLabel.style.color = heatColors[heatColors.length - 1];
+        // keep label text readable; the swatches now carry the ramp
+        labels[0].style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dim');
+        labels[labels.length - 1].style.color = getComputedStyle(document.documentElement).getPropertyValue('--text-dim');
       }
     }
-  } catch (e) { /* ignore if legend not present */ }
+  } catch (e) { /* ignore */ }
 
   for (const day of heatmap.days) {
     const row = document.createElement('div');

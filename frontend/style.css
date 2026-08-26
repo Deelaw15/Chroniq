@@ -248,7 +248,8 @@ body {
 [data-theme="light"] .heatmap-panel {
   /* pure white box to contrast with page background */
   background: #ffffff;
-  border-color: #111; /* strong border for clarity */
+  /* use the same border token as other panels so it matches visual style */
+  border-color: var(--border);
 }
 
 .heat-cell { aspect-ratio: 1 / 1; border-radius: 3px; }
