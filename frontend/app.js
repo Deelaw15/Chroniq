@@ -338,32 +338,34 @@ function renderHeatmap(heatmap) {
     }
   }
 
+  // Color level mapping: cap each cell to 1 hour when deciding color
   function levelFor(seconds) {
-    if (seconds <= 0 || maxSeconds <= 0) return 0;
-    return Math.min(5, Math.ceil((seconds / maxSeconds) * 5));
+    const capped = Math.min(Math.max(0, seconds || 0), 3600); // cap to 3600s
+    if (capped <= 0) return 0;
+    const pct = capped / 3600; // 0..1
+    // map into 1..5 (0 reserved for empty)
+    return Math.min(5, Math.max(1, Math.ceil(pct * 5)));
   }
 
-  const heatColors = getHeatColorsForAccent(currentAccentName);
+  // Get palette and order it light -> dark for both mapping and legend
+  let heatColors = getHeatColorsForAccent(currentAccentName);
+  const luminance = (hex) => {
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16)/255;
+    const g = parseInt(h.substring(2,4),16)/255;
+    const b = parseInt(h.substring(4,6),16)/255;
+    const srgb = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+    return 0.2126*srgb(r) + 0.7152*srgb(g) + 0.0722*srgb(b);
+  };
+  heatColors = heatColors.slice().sort((a,b) => luminance(a) - luminance(b));
 
-  // Update legend swatches to reflect the computed palette
+  // Update legend swatches to reflect the computed palette (light->dark)
   try {
     const swatches = document.querySelectorAll('.heatmap-legend .heat-swatch');
     if (swatches && swatches.length > 0) {
-      // Order swatches from lightest (Less) -> darkest (More).
-      const luminance = (hex) => {
-        const h = hex.replace('#','');
-        const r = parseInt(h.substring(0,2),16)/255;
-        const g = parseInt(h.substring(2,4),16)/255;
-        const b = parseInt(h.substring(4,6),16)/255;
-        // sRGB to linear
-        const srgb = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
-        const L = 0.2126*srgb(r) + 0.7152*srgb(g) + 0.0722*srgb(b);
-        return L;
-      };
-      const sorted = [...heatColors].sort((a,b) => luminance(a) - luminance(b));
       for (let i = 0; i < swatches.length; i++) {
-        const idx = Math.round(i * (sorted.length - 1) / Math.max(1, swatches.length - 1));
-        swatches[i].style.background = sorted[idx];
+        const idx = Math.round(i * (heatColors.length - 1) / Math.max(1, swatches.length - 1));
+        swatches[i].style.background = heatColors[idx];
       }
     }
   } catch (e) { /* ignore if legend not present */ }
