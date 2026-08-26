@@ -51,7 +51,14 @@
       <div class="session-status" id="session-status"><span class="dot"></span>Not tracking a session</div>
 
       <div class="spacer"></div>
-      <button class="theme-toggle-btn" id="theme-switch-home" title="Toggle theme">🌙</button>
+      <div class="theme-switch">
+        <input type="checkbox" id="theme-switch-home" />
+        <label for="theme-switch-home" class="theme-switch-label" title="Toggle theme">
+          <span class="icon-day">☀️</span>
+          <span class="switch-ball" aria-hidden="true"></span>
+          <span class="icon-night">🌙</span>
+        </label>
+      </div>
       <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
     </div>
 
@@ -100,7 +107,9 @@
         <div class="gauge-wrap">
           <svg width="210" height="134" viewBox="0 0 220 140">
             <path d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="#30363E" stroke-width="14" stroke-linecap="round"/>
-            <path id="gauge-arc" d="M 20 120 A 90 90 0 0 1 175 46" fill="none" stroke="#4FAE9D" stroke-width="14" stroke-linecap="round"/>
+            <path id="gauge-arc" d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="#4FAE9D" stroke-width="14" stroke-linecap="round" opacity="0.0"/>
+            <!-- dashed progress overlay (stroke-dasharray controlled in JS) -->
+            <path id="gauge-dash" d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="#4FAE9D" stroke-width="14" stroke-linecap="round"/>
           </svg>
           <div class="gauge-pct" id="gauge-pct">—</div>
           <div class="gauge-sub" id="gauge-sub">of daily goal</div>

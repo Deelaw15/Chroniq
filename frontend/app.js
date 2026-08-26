@@ -209,13 +209,32 @@ function renderGauge(today) {
       : `${formatShort(active)} logged · goal reached`;
 
   const cx = 110, cy = 120, r = 90;
-  const angle = Math.PI * (1 - pct / 100);
-  const x = cx - r * Math.cos(angle);
-  const y = cy - r * Math.sin(angle);
-  const largeArc = pct > 50 ? 1 : 0;
-  const arcEl = document.getElementById('gauge-arc');
-  arcEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 ${largeArc} 1 ${x.toFixed(1)} ${y.toFixed(1)}`);
-  arcEl.setAttribute('stroke', getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  const bgEl = document.getElementById('gauge-arc');
+  const dashEl = document.getElementById('gauge-dash');
+  const accentHex = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  try {
+    // background semicircle (subtle)
+    bgEl.style.stroke = 'transparent';
+    // dashed overlay
+    const len = dashEl.getTotalLength();
+    // choose number of dashes across the semicircle
+    const dashCount = 36;
+    // compute dash/gap such that dashes are roughly even
+    const dashLen = Math.max(2, Math.floor(len / (dashCount * 1.6)));
+    const gapLen = Math.max(2, Math.floor(dashLen * 0.6));
+    dashEl.style.strokeDasharray = `${dashLen} ${gapLen}`;
+    // visible proportion based on pct (0..1)
+    const visible = Math.max(0, Math.min(1, pct / 100));
+    // stroke-dashoffset: hide trailing portion by offsetting along the path
+    const dashOffset = len * (1 - visible);
+    dashEl.style.strokeDashoffset = String(dashOffset);
+    dashEl.style.transition = 'stroke-dashoffset 400ms ease, stroke 200ms ease';
+    dashEl.style.stroke = accentHex || '#4FAE9D';
+  } catch (e) {
+    // fallback: set simple arc path if needed
+    bgEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 0 1 200 120`);
+    dashEl.setAttribute('d', `M 20 120 A ${r} ${r} 0 0 1 200 120`);
+  }
 }
 
 // ============================================================
@@ -272,9 +291,9 @@ function applyTheme() {
   document.documentElement.style.setProperty('--accent', hex);
   // Update quick theme toggle icons (home and settings) to reflect current theme
   try {
-    const homeBtn = document.getElementById('theme-switch-home');
+    const homeToggle = document.getElementById('theme-switch-home');
     const settingsBtn = document.getElementById('theme-toggle-btn');
-    if (homeBtn) homeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+    if (homeToggle) homeToggle.checked = (theme === 'light');
     if (settingsBtn) settingsBtn.textContent = theme === 'dark' ? '🌙 Dark' : '☀️ Light';
   } catch (e) { /* ignore */ }
   return { theme, accent };
@@ -921,16 +940,63 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
 });
 
 // Quick theme toggle on the top bar
-const homeThemeBtn = document.getElementById('theme-switch-home');
-if (homeThemeBtn) {
-  homeThemeBtn.addEventListener('click', () => {
-    const current = localStorage.getItem('focusTracker.theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
+const homeThemeToggle = document.getElementById('theme-switch-home');
+if (homeThemeToggle) {
+  homeThemeToggle.addEventListener('change', () => {
+    const next = homeThemeToggle.checked ? 'light' : 'dark';
     localStorage.setItem('focusTracker.theme', next);
     applyTheme();
-    // update any visible settings controls
     loadSettingsPage();
   });
+
+  // Make the switch-ball draggable for a slide interaction (pointer events)
+  (function makeSliderDraggable() {
+    const label = document.querySelector('label[for="theme-switch-home"]');
+    if (!label) return;
+    const ball = label.querySelector('.switch-ball');
+    if (!ball) return;
+
+    let dragging = false;
+    let startX = 0;
+    let rect = null;
+
+    function onPointerDown(e) {
+      dragging = true;
+      startX = e.clientX;
+      rect = label.getBoundingClientRect();
+      ball.setPointerCapture && ball.setPointerCapture(e.pointerId);
+      ball.style.transition = 'none';
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      if (!dragging || !rect) return;
+      const dx = e.clientX - rect.left; // position inside label
+      const t = Math.max(0, Math.min(1, (dx - 6) / (rect.width - 34))); // normalize with padding
+      const translate = Math.round(t * 18); // same translate used in CSS
+      ball.style.transform = `translateX(${translate}px)`;
+    }
+
+    function finishDrag(e) {
+      if (!dragging) return;
+      dragging = false;
+      ball.style.transition = '';
+      // decide based on final ball position
+      const dx = (e.clientX || startX) - rect.left;
+      const t = Math.max(0, Math.min(1, (dx - 6) / (rect.width - 34)));
+      const next = t >= 0.5 ? 'light' : 'dark';
+      homeThemeToggle.checked = (next === 'light');
+      localStorage.setItem('focusTracker.theme', next);
+      applyTheme();
+      loadSettingsPage();
+      try { ball.releasePointerCapture && ball.releasePointerCapture(e.pointerId); } catch(_) {}
+    }
+
+    ball.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', finishDrag);
+  })();
 }
 
 document.querySelectorAll('.accent-swatch').forEach(btn => {
