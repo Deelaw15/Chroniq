@@ -1,4 +1,4 @@
-"""Desktop launcher for Focus Tracker.
+"""Desktop launcher for Chroniq.
 
 Starts the tracker and FastAPI server inside one process, then shows the
 existing /dashboard frontend in a native pywebview window.
@@ -110,10 +110,10 @@ def main() -> None:
         logger.info("Opening desktop dashboard: %s", dashboard_url)
 
         webview.create_window(
-            "Focus Tracker",
+            "Chroniq",
             dashboard_url,
             width=1380,
-            height=860,
+            height=900,
             min_size=(1000, 650),
             resizable=True,
         )
@@ -128,7 +128,7 @@ def main() -> None:
 
         tracker_thread.join(timeout=8)
         server_thread.join(timeout=8)
-        logger.info("Focus Tracker desktop app stopped.")
+        logger.info("Chroniq desktop app stopped.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Focus Tracker
+# Chroniq
 
 A personal desktop productivity tracker: logs active window/app time
 and idle periods to a local SQLite database. Built in phases -
