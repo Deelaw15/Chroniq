@@ -85,7 +85,7 @@ body {
   flex-wrap: wrap;
 }
 
-.brand-title { font-size: 20px; font-weight: 600; margin-right: 4px; }
+.brand-title { font-size: 20px; font-weight: 700; margin-right: 4px; }
 
 .session-controls { display: flex; gap: 8px; }
 .session-btn {

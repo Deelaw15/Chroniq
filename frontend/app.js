@@ -87,7 +87,8 @@ function colorForApp(appName) {
 // ============================================================
 function renderTopBar(today) {
   document.getElementById('main-elapsed').textContent = formatHMS(today.total_active_seconds);
-  document.getElementById('idle-inline').textContent = `Idle ${formatHMS(today.total_idle_seconds)}`;
+  // Idle time used to also show here, but it's redundant with the
+  // "Idle Time" KPI card below - removed to free up header space.
 }
 
 // ============================================================
