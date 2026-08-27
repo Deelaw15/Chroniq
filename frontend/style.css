@@ -136,25 +136,8 @@ body {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 7px 10px;
-  border-radius: 7px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.refresh-icon-btn {
-  width: 38px;
-  height: 36px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-.refresh-btn:hover {
-  background: var(--panel);
-  color: var(--text);
+  font-size: 13px; font-weight: 500;
+  padding: 9px 16px; border-radius: 8px;
 }
 
 .theme-toggle-btn {
@@ -163,7 +146,7 @@ body {
   padding: 6px 10px; cursor: pointer; margin-right: 6px;
 }
 
-/* Compact single-button theme toggle */
+/* Day/Night slider switch */
 .theme-icon-btn {
   background: var(--panel-raised);
   border: 1px solid var(--border);
@@ -199,27 +182,17 @@ body {
 .panel-title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 16px; display: block; }
 
 /* ---------- Gauge ---------- */
+/* NOTE: sizing/positioning for .gauge-pct, .gauge-sub, .gauge-goal-text,
+   and the SVG itself live in ONE place further down (search
+   ".gauge-visual" / ".gauge-center" / ".goal-gauge") - this file
+   previously had multiple conflicting copies of these rules scattered
+   across several edits, which is what caused the overlap and
+   fixed-size "stuck small" bugs. Consolidated here on 2026-08-26. */
 .gauge-wrap { display: flex; flex-direction: column; align-items: center; }
-.gauge-pct { font-family: var(--font-display); font-size: 32px; font-weight: 600; margin-top: -70px; }
-.gauge-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
-.gauge-goal-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* Segmented daily-goal countdown arc */
-.goal-gauge { overflow: visible; }
-.gauge-segment {
-  stroke-width: 12;
-  stroke-linecap: round;
-  transition: stroke 220ms ease, opacity 220ms ease;
-}
-.gauge-segment.is-remaining {
-  stroke: var(--accent);
-  opacity: 1;
-}
-.gauge-segment.is-depleted {
-  stroke: var(--border);
-  opacity: 0.62;
-}
-[data-theme="light"] .gauge-segment.is-depleted { opacity: 0.9; }
+/* dashed gauge overlay styling */
+#gauge-dash { stroke-linecap: round; }
+
 
 /* ---------- App breakdown list ---------- */
 .app-row {
@@ -466,132 +439,1013 @@ body {
   border-color: var(--accent);
 }
 .task-row.active-task .task-name { color: var(--accent); }
-
 /* ============================================================
-   Desktop app viewport fitting
+   Native desktop window layout
+   Keeps the original Focus Tracker visual design, but makes the
+   dashboard fit naturally inside the pywebview app window.
    ============================================================ */
 
 html,
 body {
+  width: 100%;
   height: 100%;
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   padding: 10px;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
 }
 
 .frame {
-  margin-top: 0;
   width: 100%;
   max-width: none;
-  min-height: calc(100vh - 20px);
+  height: calc(100dvh - 20px);
+  min-height: 0;
+  margin: 0;
+  padding: 14px;
+  gap: 14px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.28);
 }
 
+.sidebar {
+  width: 72px;
+  min-height: 0;
+  padding-top: 2px;
+}
 
-/* Compact dashboard when the desktop app has limited height */
-@media (max-height: 900px) {
+.avatar {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 14px;
+}
 
-  body {
-    padding: 6px;
-  }
+.nav-item {
+  width: 56px;
+  padding: 8px 0;
+}
+
+.main-col {
+  min-height: 0;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.main-col::-webkit-scrollbar { width: 7px; }
+.main-col::-webkit-scrollbar-track { background: transparent; }
+.main-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+
+#view-today {
+  height: 100%;
+}
+
+.top-bar {
+  padding: 14px 16px;
+  gap: 14px;
+  border-radius: 13px;
+}
+
+.brand-title {
+  font-size: 18px;
+}
+
+.session-controls {
+  gap: 6px;
+}
+
+.session-btn {
+  font-size: 12px;
+  padding: 8px 13px;
+}
+
+.focus-readout {
+  gap: 8px;
+}
+
+.focus-readout .value {
+  font-size: 27px;
+}
+
+.focus-readout .label {
+  font-size: 9px;
+}
+
+.idle-inline {
+  font-size: 11px;
+}
+
+.session-status {
+  font-size: 10px;
+  padding: 4px 9px;
+}
+
+/* Keep the two utility controls compact and visually matched. */
+.theme-icon-btn,
+.refresh-icon-btn {
+  width: 36px;
+  height: 34px;
+  min-width: 36px;
+  padding: 0;
+  margin-right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.refresh-icon-btn {
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.refresh-icon-btn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.kpi-row {
+  gap: 10px;
+}
+
+.kpi-card {
+  padding: 13px 15px;
+}
+
+.kpi-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+}
+
+.kpi-value {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.insights-panel {
+  padding: 15px 17px;
+}
+
+.insights-panel .panel-title {
+  margin-bottom: 10px !important;
+}
+
+.insight-row {
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.insight-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.insight-text {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.insight-basis {
+  font-size: 10px;
+}
+
+/* Let the bottom report area use the space left in the app window.
+   The first row keeps the original two-card layout; the heatmap panel
+   receives the remaining height instead of being cut off. */
+#view-today .content-grid {
+  flex: 1 1 auto;
+  min-height: 320px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(150px, 1fr);
+  gap: 12px;
+}
+
+.panel {
+  padding: 16px 17px;
+  border-radius: 13px;
+}
+
+.panel-title {
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+/* Gauge sizing/positioning lives in the .gauge-visual/.gauge-center/
+   .goal-gauge system further down this file (consolidated 2026-08-26,
+   see note near ".gauge-wrap" above). */
+
+.app-row {
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.app-rank,
+.app-time {
+  font-size: 11px;
+}
+
+/* The original square heatmap becomes too tall in a desktop app because
+   the cells grow with window width. Keep the same visual language but use
+   compact rounded rectangles, as in the original compact mock-up. */
+.heatmap-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.heat-day-row {
+  grid-template-columns: 38px repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.heat-cell {
+  width: 100%;
+  height: clamp(11px, 1.55vh, 17px);
+  aspect-ratio: auto;
+  border-radius: 3px;
+}
+
+.heat-hour-axis {
+  grid-template-columns: 38px repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.heat-day-name {
+  font-size: 10px;
+}
+
+.heat-hour-label {
+  font-size: 8px;
+}
+
+.heatmap-legend {
+  gap: 6px;
+  margin-top: 9px;
+  font-size: 10px;
+}
+
+.heat-swatch {
+  width: 9px;
+  height: 9px;
+}
+
+.frame-footer {
+  margin-top: 0;
+  font-size: 9px;
+}
+
+/* Keep the original right-rail design: the task card fills the remaining
+   height just like the initial layout, while the content stays at the top. */
+.right-col {
+  width: 292px;
+  min-height: 0;
+  height: 100%;
+  gap: 12px;
+}
+
+.now-card {
+  padding: 15px 16px;
+  border-radius: 13px;
+}
+
+.now-title-row {
+  margin-bottom: 10px;
+}
+
+.now-title {
+  font-size: 11px;
+}
+
+.phase-label {
+  margin-bottom: 9px;
+  font-size: 10px;
+  padding: 3px 9px;
+}
+
+.now-app-row {
+  margin-bottom: 9px;
+}
+
+.now-app-icon {
+  width: 31px;
+  height: 31px;
+}
+
+.now-app-name {
+  font-size: 13px;
+}
+
+.now-app-sub {
+  font-size: 10px;
+}
+
+.now-elapsed {
+  font-size: 27px;
+  margin: 7px 0 4px;
+}
+
+.now-elapsed-label {
+  font-size: 10px;
+  margin-bottom: 9px;
+}
+
+.tasks-panel {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 15px 16px;
+  overflow-y: auto;
+}
+
+.tasks-panel-header {
+  margin-bottom: 10px;
+}
+
+.task-row {
+  padding: 9px 0;
+  gap: 8px;
+}
+
+.task-name {
+  font-size: 12px;
+}
+
+.task-tag {
+  font-size: 10px;
+}
+
+.task-icon-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.task-start-btn {
+  font-size: 11px;
+  padding: 6px 10px;
+}
+
+/* Compact mode for shorter laptop / restored windows. This preserves the
+   initial design instead of shrinking the whole page with transform:scale. */
+@media (max-height: 790px) {
+  body { padding: 6px; }
 
   .frame {
-    min-height: calc(100vh - 12px);
-    padding: 12px;
-    gap: 12px;
-    border-radius: 18px;
-  }
-
-  .main-col {
+    height: calc(100dvh - 12px);
+    padding: 10px;
     gap: 10px;
+    border-radius: 16px;
   }
 
-  .right-col {
-    gap: 10px;
+  .sidebar { width: 62px; }
+  .avatar { width: 34px; height: 34px; margin-bottom: 8px; font-size: 14px; }
+  .nav-item { width: 48px; padding: 6px 0; font-size: 8px; }
+  .nav-icon { font-size: 14px; }
+
+  .main-col { gap: 8px; }
+
+  .top-bar { padding: 9px 11px; gap: 9px; }
+  .brand-title { font-size: 15px; }
+  .session-btn { padding: 6px 10px; font-size: 10px; }
+  .focus-readout .value { font-size: 22px; }
+  .focus-readout .label { font-size: 8px; }
+  .idle-inline { font-size: 9px; }
+  .session-status { font-size: 8px; padding: 3px 7px; }
+
+  .theme-icon-btn,
+  .refresh-icon-btn {
+    width: 31px;
+    height: 30px;
+    min-width: 31px;
+    font-size: 13px;
   }
 
-  .top-bar {
-    padding: 12px 16px;
-    gap: 14px;
-  }
+  .kpi-row { gap: 7px; }
+  .kpi-card { padding: 9px 10px; }
+  .kpi-label { font-size: 8px; margin-bottom: 4px; }
+  .kpi-value { font-size: 15px; margin-bottom: 4px; }
+  .kpi-qualifier { font-size: 8px; }
 
-  .brand-title {
-    font-size: 18px;
-  }
+  .insights-panel { padding: 10px 12px; }
+  .insights-panel .panel-title { margin-bottom: 6px !important; }
+  .insight-row { padding: 4px 0; gap: 7px; }
+  .insight-icon { width: 20px; height: 20px; font-size: 10px; }
+  .insight-text { font-size: 10px; line-height: 1.25; }
+  .insight-basis { font-size: 8px; }
 
-  .focus-readout .value {
-    font-size: 26px;
-  }
-
-  .kpi-row {
+  #view-today .content-grid {
+    min-height: 270px;
     gap: 8px;
+    grid-template-rows: auto minmax(118px, 1fr);
   }
 
-  .kpi-card {
-    padding: 10px 12px;
+  .panel { padding: 10px 12px; }
+  .panel-title { margin-bottom: 7px; font-size: 9px; }
+
+  #edit-goal-btn { margin-top: 6px !important; padding: 4px 9px; font-size: 9px; }
+
+  .app-row { padding: 4px 0; font-size: 10px; gap: 7px; }
+  .app-rank, .app-time { font-size: 9px; }
+  .app-bar-track { height: 4px; }
+
+  .heat-day-row { grid-template-columns: 32px repeat(24, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; }
+  .heat-cell { height: 10px; border-radius: 2px; }
+  .heat-hour-axis { grid-template-columns: 32px repeat(24, minmax(0, 1fr)); gap: 2px; margin-top: 3px; }
+  .heat-day-name { font-size: 8px; }
+  .heat-hour-label { font-size: 6px; }
+  .heatmap-legend { margin-top: 5px; gap: 4px; font-size: 8px; }
+  .heat-swatch { width: 7px; height: 7px; }
+
+  .right-col { width: 250px; gap: 8px; }
+  .now-card { padding: 10px 11px; }
+  .now-title-row { margin-bottom: 6px; }
+  .now-title { font-size: 9px; }
+  .phase-label { margin-bottom: 5px; font-size: 8px; padding: 2px 7px; }
+  .now-app-row { margin-bottom: 5px; gap: 7px; }
+  .now-app-icon { width: 26px; height: 26px; font-size: 11px; }
+  .now-app-name { font-size: 10px; }
+  .now-app-sub { font-size: 8px; }
+  .now-elapsed { font-size: 21px; margin: 4px 0 2px; }
+  .now-elapsed-label { font-size: 8px; margin-bottom: 5px; }
+  .cycle-dots { margin-top: 5px; }
+  .cycle-dot { width: 7px; height: 7px; }
+
+  .tasks-panel { padding: 10px 11px; }
+  .tasks-panel-header { margin-bottom: 5px; }
+  .add-task-btn { padding: 4px 8px; font-size: 9px; }
+  .task-row { padding: 6px 0; gap: 5px; }
+  .task-name { font-size: 9px; }
+  .task-tag { font-size: 7px; }
+  .task-icon-btn { width: 22px; height: 22px; font-size: 9px; }
+  .task-start-btn { padding: 4px 7px; font-size: 9px; }
+
+  .frame-footer { font-size: 7px; }
+}
+
+/* Width adaptation for a restored desktop window. */
+@media (max-width: 1250px) {
+  .frame { gap: 10px; padding-left: 10px; padding-right: 10px; }
+  .sidebar { width: 60px; }
+  .right-col { width: 245px; }
+  .top-bar { gap: 9px; }
+  .brand-title { font-size: 16px; }
+  .session-btn { padding-left: 10px; padding-right: 10px; }
+  .focus-readout .label { display: none; }
+  .kpi-card { padding-left: 10px; padding-right: 10px; }
+}
+
+/* ============================================================
+   Goal/apps compression + premium heatmap treatment
+   ============================================================ */
+
+/* Give the heatmap more of the vertical budget by making the
+   Daily Goal + Top Apps row intentionally shallower. */
+#view-today .content-grid {
+  grid-template-rows: 176px minmax(170px, 1fr);
+}
+
+#view-today .content-grid > .panel:not(.heatmap-panel) {
+  padding: 13px 15px;
+}
+
+#view-today .content-grid > .panel:not(.heatmap-panel) .panel-title {
+  margin-bottom: 8px;
+}
+
+#edit-goal-btn {
+  margin-top: 6px !important;
+  padding: 5px 10px;
+}
+
+#view-today .content-grid > .panel:not(.heatmap-panel) .app-row {
+  padding: 4px 0;
+}
+
+/* The heatmap gets the visual emphasis instead of the cards above it. */
+.heatmap-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 17px;
+}
+
+/* Large/maximized native window: make the heatmap feel intentional,
+   spacious and polished rather than like a compressed web table. */
+@media (min-width: 1450px) and (min-height: 820px) {
+  #view-today .content-grid {
+    grid-template-rows: 170px minmax(250px, 1fr);
   }
 
-  .kpi-label {
-    margin-bottom: 5px;
+  .heatmap-panel {
+    padding: 17px 20px 15px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.025),
+      0 10px 28px rgba(0,0,0,0.08);
   }
 
-  .kpi-value {
-    font-size: 18px;
-    margin-bottom: 5px;
+  .heatmap-panel .panel-title {
+    margin-bottom: 8px;
+    letter-spacing: 0.11em;
   }
 
-  .insights-panel {
-    padding: 12px 16px;
-  }
-
-  .insight-row {
-    padding: 6px 0;
-  }
-
-  .panel {
-    padding: 12px 16px;
-  }
-
-  .panel-title {
-    margin-bottom: 10px;
-  }
-
-  .content-grid {
-    gap: 10px;
-  }
-
-  .now-card {
-    padding: 14px;
-  }
-
-  .tasks-panel {
-    padding: 14px;
-  }
-
-  .app-row {
-    padding: 5px 0;
-  }
-
-  .gauge-wrap svg {
-    height: 110px;
-  }
-
-  .gauge-pct {
-    font-size: 28px;
+  #heatmap-days {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
   }
 
   .heat-day-row {
-    margin-bottom: 2px;
-    gap: 2px;
+    grid-template-columns: 42px repeat(24, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  .heat-cell {
+    height: clamp(17px, 2.05vh, 22px);
+    border-radius: 5px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.035),
+      0 1px 2px rgba(0,0,0,0.14);
+    transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+  }
+
+  .heat-cell:hover {
+    transform: translateY(-1px) scale(1.025);
+    filter: brightness(1.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 4px 10px rgba(0,0,0,0.16);
+    position: relative;
+    z-index: 2;
+  }
+
+  .heat-day-name {
+    font-size: 10px;
+    letter-spacing: 0.04em;
   }
 
   .heat-hour-axis {
-    gap: 2px;
-    margin-top: 3px;
+    grid-template-columns: 42px repeat(24, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 9px;
+  }
+
+  .heat-hour-label {
+    font-size: 8px;
+    opacity: 0.82;
   }
 
   .heatmap-legend {
-    margin-top: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    gap: 7px;
+    border-top: 1px solid var(--border);
   }
+
+  .heat-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+}
+
+/* Short restored windows still prioritize fitting the complete report. */
+@media (max-height: 790px) {
+  #view-today .content-grid {
+    grid-template-rows: 145px minmax(118px, 1fr);
+  }
+
+  #view-today .content-grid > .panel:not(.heatmap-panel) {
+    padding: 9px 11px;
+  }
+
+  #view-today .content-grid > .panel:not(.heatmap-panel) .panel-title {
+    margin-bottom: 5px;
+  }
+
+  #edit-goal-btn {
+    margin-top: 4px !important;
+    padding: 3px 8px;
+    font-size: 8px;
+  }
+
+  #view-today .content-grid > .panel:not(.heatmap-panel) .app-row {
+    padding: 3px 0;
+  }
+
+  .heatmap-panel {
+    padding: 9px 11px;
+  }
+}
+
+/* ============================================================
+   Stable responsive daily-goal gauge repair
+   ============================================================ */
+
+/* The SVG and its labels now resize as one unit. This avoids the old
+   negative-margin positioning that could separate the percentage/button
+   from the arc when the native window changed size. */
+.gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+}
+
+.gauge-visual {
+  position: relative;
+  width: clamp(145px, 13vw, 175px);
+  height: clamp(76px, 7.3vw, 92px);
+  flex: 0 0 auto;
+}
+
+.goal-gauge {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gauge-center {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  pointer-events: none;
+}
+
+.gauge-pct {
+  margin: 0 !important;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 1.65vw, 27px) !important;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.gauge-sub {
+  margin: 4px 0 0 !important;
+  font-size: clamp(7px, 0.62vw, 9px) !important;
+  line-height: 1.1;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.gauge-goal-text {
+  margin-top: 3px !important;
+  font-size: clamp(8px, 0.72vw, 10px) !important;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+#edit-goal-btn {
+  margin-top: 5px !important;
+  padding: 4px 9px !important;
+  font-size: clamp(8px, 0.68vw, 10px) !important;
+  line-height: 1.2;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+/* Real SVG segments: active segments represent goal time still remaining. */
+.gauge-segment {
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke 220ms ease, opacity 220ms ease, filter 220ms ease;
+}
+
+.gauge-segment.is-remaining {
+  stroke: var(--accent);
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.12));
+}
+
+.gauge-segment.is-depleted {
+  stroke: var(--border);
+  opacity: 0.68;
+}
+
+[data-theme="light"] .gauge-segment.is-depleted {
+  opacity: 0.9;
+}
+
+/* Give the heatmap the space saved by the shorter goal/apps row. */
+#view-today .content-grid {
+  grid-template-rows: 164px minmax(185px, 1fr);
+}
+
+@media (min-width: 1450px) and (min-height: 820px) {
+  #view-today .content-grid {
+    grid-template-rows: 160px minmax(270px, 1fr);
+  }
+
+  .gauge-visual {
+    width: 170px;
+    height: 89px;
+  }
+}
+
+@media (max-height: 790px) {
+  #view-today .content-grid {
+    grid-template-rows: 140px minmax(120px, 1fr);
+  }
+
+  .gauge-visual {
+    width: 126px;
+    height: 66px;
+  }
+
+  .gauge-pct {
+    font-size: 18px !important;
+  }
+
+  .gauge-sub {
+    font-size: 6.5px !important;
+    margin-top: 2px !important;
+  }
+
+  .gauge-goal-text {
+    margin-top: 1px !important;
+    font-size: 7px !important;
+  }
+
+  #edit-goal-btn {
+    margin-top: 3px !important;
+    padding: 3px 7px !important;
+    font-size: 7px !important;
+  }
+}
+
+/* ============================================================
+   Balanced native fullscreen layout
+   Keeps the restored-window layout intact, but prevents any one
+   dashboard section from dominating when the app is maximized.
+   ============================================================ */
+@media (min-width: 1400px) and (min-height: 800px) {
+  /* Slightly calmer outer proportions on a large native window. */
+  .frame {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .sidebar {
+    width: 66px;
+  }
+
+  .right-col {
+    width: 270px;
+    height: 100%;
+    gap: 12px;
+    align-content: start;
+  }
+
+  /* Do not turn the task card into one giant empty column. */
+  .tasks-panel {
+    flex: 0 1 auto;
+    min-height: 260px;
+    max-height: 410px;
+    overflow-y: auto;
+  }
+
+  /* ---------------- Today ---------------- */
+  #view-today {
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #view-today .top-bar {
+    padding: 12px 15px;
+  }
+
+  #view-today .kpi-card {
+    padding: 11px 13px;
+  }
+
+  #view-today .insights-panel {
+    padding: 12px 15px;
+  }
+
+  #view-today .insight-row {
+    padding: 5px 0;
+  }
+
+  /* Split the lower report area intentionally: roughly 40% goal/apps,
+     60% heatmap. The heatmap gets prominence without swallowing the page. */
+  #view-today .content-grid {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(155px, 0.42fr) minmax(220px, 0.58fr);
+    gap: 10px;
+  }
+
+  #view-today .content-grid > .panel:not(.heatmap-panel) {
+    min-height: 0;
+    padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-today .content-grid > .panel:not(.heatmap-panel) .panel-title {
+    margin-bottom: 6px;
+  }
+
+  /* Goal and Top Apps share the same visual height and center their content. */
+  #view-today .gauge-wrap {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  #view-today .gauge-visual {
+    width: 152px;
+    height: 79px;
+  }
+
+  #view-today .gauge-pct {
+    font-size: 23px !important;
+  }
+
+  #view-today .gauge-goal-text {
+    font-size: 9px !important;
+  }
+
+  #view-today #edit-goal-btn {
+    margin-top: 4px !important;
+  }
+
+  #view-today #top-apps-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  #view-today .app-row {
+    padding: 4px 0;
+  }
+
+  /* Heatmap: polished, roomy, but with fixed visual rhythm instead of
+     vertically stretching its cells to consume every spare pixel. */
+  #view-today .heatmap-panel {
+    min-height: 0;
+    padding: 14px 17px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.025),
+      0 8px 24px rgba(0,0,0,0.07);
+  }
+
+  #view-today .heatmap-panel .panel-title {
+    margin-bottom: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  #view-today #heatmap-days {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  #view-today .heat-day-row {
+    grid-template-columns: 40px repeat(24, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  #view-today .heat-cell {
+    height: 18px;
+    border-radius: 5px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.035),
+      0 1px 2px rgba(0,0,0,0.12);
+  }
+
+  #view-today .heat-hour-axis {
+    grid-template-columns: 40px repeat(24, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 7px;
+  }
+
+  #view-today .heatmap-legend {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---------------- Weekly ---------------- */
+  #view-weekly {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #view-weekly .top-bar {
+    padding: 12px 15px;
+  }
+
+  #view-weekly .kpi-card {
+    padding: 11px 13px;
+  }
+
+  /* Use the available height instead of leaving a large dead zone below. */
+  #view-weekly .content-grid {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(235px, 1.05fr) minmax(205px, 0.95fr);
+    gap: 10px;
+  }
+
+  #view-weekly .content-grid > .panel {
+    min-height: 0;
+    padding: 14px 16px;
+    overflow: hidden;
+  }
+
+  #view-weekly .content-grid > .panel:first-child {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #view-weekly .chart-block {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  #view-weekly #weekly-chart {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  #view-weekly #weekly-top-apps,
+  #view-weekly #weekly-day-table {
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  #view-weekly .day-table-row {
+    padding: 6px 0;
+  }
+}
+
+/* Very large monitors: let the composition breathe a little, but keep
+   the same proportions instead of making the heatmap or right rail huge. */
+@media (min-width: 1750px) and (min-height: 950px) {
+  .right-col {
+    width: 285px;
+  }
+
+  .tasks-panel {
+    max-height: 440px;
+  }
+
+  #view-today .content-grid {
+    grid-template-rows: minmax(165px, 0.40fr) minmax(245px, 0.60fr);
+  }
+
+  #view-today .heat-cell {
+    height: 20px;
+  }
+
+  #view-weekly .content-grid {
+    grid-template-rows: minmax(260px, 1.05fr) minmax(220px, 0.95fr);
+  }
+}
+
+/* ---------- Logo (added for Chroniq rename) ---------- */
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }

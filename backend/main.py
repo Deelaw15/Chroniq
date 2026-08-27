@@ -38,7 +38,7 @@ def resource_path(relative_path: str) -> Path:
 
 
 app = FastAPI(
-    title="Focus Tracker API",
+    title="Chroniq API",
     description="Local API for querying personal activity tracking data.",
     version="0.1.0",
 )

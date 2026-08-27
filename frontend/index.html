@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Focus Tracker</title>
+<title>Chroniq</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -24,7 +25,7 @@
 <div class="frame">
 
   <nav class="sidebar">
-    <div class="avatar">◈</div>
+    <div class="avatar"><img src="logo.png" alt="Chroniq" class="avatar-img"></div>
     <div class="nav-item active" id="nav-today"><span class="nav-icon">▤</span>Today</div>
     <div class="nav-item" id="nav-weekly"><span class="nav-icon">▦</span>Weekly</div>
     <div class="nav-item" id="nav-settings"><span class="nav-icon">⚙</span>Settings</div>
@@ -34,7 +35,7 @@
 
     <!-- Top bar: single consolidated readout + session controls -->
     <div class="top-bar">
-      <span class="brand-title">Focus Tracker</span>
+      <span class="brand-title">Chroniq</span>
 
       <div class="session-controls">
         <button class="session-btn primary" id="btn-start">▶ Start Focus</button>
@@ -51,14 +52,9 @@
       <div class="session-status" id="session-status"><span class="dot"></span>Not tracking a session</div>
 
       <div class="spacer"></div>
-      <button id="theme-switch-home" class="theme-icon-btn" aria-label="Switch to light mode" title="Switch to light mode">💡</button>
-      <button
-      class="refresh-btn refresh-icon-btn"
-      id="refresh-btn"
-      aria-label="Refresh dashboard"
-      title="Refresh"
-      >↻</button>
-      </div>
+      <button id="theme-switch-home" class="theme-icon-btn" aria-label="Switch to light mode">💡</button>
+      <button class="refresh-btn refresh-icon-btn" id="refresh-btn" aria-label="Refresh dashboard" title="Refresh">↻</button>
+    </div>
 
     <!-- KPI row -->
     <div class="kpi-row">
@@ -103,14 +99,17 @@
       <section class="panel">
         <span class="panel-title">Daily Goal Progress</span>
         <div class="gauge-wrap">
-          <svg class="goal-gauge" width="210" height="134" viewBox="0 0 220 140" role="img" aria-label="Daily goal countdown">
-            <!-- JS creates the individual countdown segments in this group. -->
-            <g id="gauge-segments" aria-hidden="true"></g>
-          </svg>
-          <div class="gauge-pct" id="gauge-pct">—</div>
-          <div class="gauge-sub" id="gauge-sub">of daily goal</div>
+          <div class="gauge-visual">
+            <svg class="goal-gauge" viewBox="0 0 220 140" role="img" aria-label="Daily goal countdown">
+              <g id="gauge-segments" aria-hidden="true"></g>
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-pct" id="gauge-pct">—</div>
+              <div class="gauge-sub" id="gauge-sub">of daily goal</div>
+            </div>
+          </div>
           <div class="gauge-goal-text" id="gauge-goal-text">—</div>
-          <button class="add-task-btn" id="edit-goal-btn" style="margin-top:10px;">Edit goal</button>
+          <button class="add-task-btn" id="edit-goal-btn">Edit goal</button>
         </div>
       </section>
 
@@ -144,14 +143,14 @@
   <!-- Weekly view -->
   <div class="main-col" id="view-weekly" style="display:none;">
     <div class="top-bar">
-      <span class="brand-title">Focus Tracker</span>
+      <span class="brand-title">Chroniq</span>
       <div class="focus-readout">
         <span class="value" id="weekly-total">—</span>
         <span class="label">Active this week</span>
       </div>
       <div class="idle-inline" id="weekly-range">—</div>
       <div class="spacer"></div>
-      <button class="refresh-btn" id="weekly-refresh-btn">↻ Refresh</button>
+      <button class="refresh-btn refresh-icon-btn" id="weekly-refresh-btn" aria-label="Refresh weekly report" title="Refresh">↻</button>
     </div>
 
     <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
@@ -200,7 +199,7 @@
   <!-- Settings view -->
   <div class="main-col" id="view-settings" style="display:none;">
     <div class="top-bar">
-      <span class="brand-title">Focus Tracker</span>
+      <span class="brand-title">Chroniq</span>
       <div class="spacer"></div>
     </div>
 
@@ -209,7 +208,7 @@
 
       <div class="settings-row">
         <div>
-          <div class="settings-row-label">Theme</div>
+          <div class="settings-row-label">Theme</div>cm
           <div class="settings-row-hint">Switch between dark and light background</div>
         </div>
         <button class="theme-toggle-btn" id="theme-toggle-btn">🌙 Dark</button>
@@ -387,7 +386,7 @@
 <div id="error-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--panel);color:var(--text);max-width:900px;width:calc(100% - 40px);margin:24px;border-radius:10px;padding:16px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,0.6);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <strong style="font-size:16px;">Runtime Error — Focus Tracker</strong>
+      <strong style="font-size:16px;">Runtime Error — Chroniq</strong>
       <div style="display:flex;gap:8px;align-items:center;">
         <button id="error-copy" style="padding:6px 8px;border-radius:6px;border:0;background:var(--accent);color:#fff;">Copy</button>
         <button id="error-close" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);">Dismiss</button>

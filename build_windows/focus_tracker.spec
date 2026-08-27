@@ -18,7 +18,7 @@ a = Analysis(
     # frontend/ is bundled as a read-only asset, unpacked at runtime
     # via sys._MEIPASS - see resource_path() in backend/main.py.
     # The 'data' and 'logs' folders are deliberately NOT bundled here:
-    # those are writable and belong in %APPDATA%\FocusTracker instead
+    # those are writable and belong in %APPDATA%\Chroniq instead
     # (see config/settings.py), created fresh on first run.
     datas=[
         (str(project_root / 'frontend'), 'frontend'),
@@ -57,22 +57,23 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='FocusTracker',
+    name='Chroniq',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # keep the console window for the beta-test phase -
-                   # testers can see errors/logs directly, which matters
-                   # far more than a polished look while you're still
-                   # finding bugs with a small group. Switch to False
-                   # once the app is stable and you want a cleaner look.
+    console=False,  # hidden console - safe now that setup_logging()
+                    # and uvicorn's log_config avoid writing to a
+                    # stdout/stderr that doesn't exist in this mode.
+                    # Errors still reach the user via show_startup_error()
+                    # (a popup) and always land in the log file at
+                    # %APPDATA%\Chroniq\logs\tracker.log regardless.
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # add a path to a .ico file here once you have one
+    icon=str(project_root / 'build_windows' / 'app_icon.ico'),
 )
