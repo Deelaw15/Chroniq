@@ -56,11 +56,11 @@ body {
   flex-shrink: 0;
 }
 .avatar {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: var(--panel-raised);
-  border: 1px solid var(--border);
+  width: 44px; height: 44px; border-radius: 24%;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; margin-bottom: 20px; color: var(--accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
 }
 .nav-item {
   width: 60px; padding: 10px 0;
@@ -1470,6 +1470,125 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: inherit;
   display: block;
 }
+
+/* ============================================================
+   Session pop-up notifications (pomodoro phase changes)
+   ============================================================ */
+#toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 36px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  animation: toast-in 200ms ease;
+}
+
+.toast.toast-out { animation: toast-out 200ms ease forwards; }
+.toast.tone-break { border-left-color: var(--gold); }
+.toast.tone-focus { border-left-color: var(--accent); }
+
+.toast-icon { font-size: 17px; line-height: 1.2; flex-shrink: 0; }
+.toast-body { min-width: 0; flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.toast-text { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.35; }
+
+.toast-close {
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 6px;
+  flex-shrink: 0;
+}
+.toast-close:hover { color: var(--text); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast.toast-out { animation: none; }
+}
+
+.settings-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ============================================================
+   Tracker status chip + live "Focus time today" clock
+   ============================================================ */
+.track-status {
+  font-size: 11px;
+  font-family: var(--font-display);
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--panel-raised);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.track-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.track-status.is-live { color: var(--accent); }
+.track-status.is-live .track-dot {
+  background: var(--accent);
+  animation: track-pulse 2s ease-out infinite;
+}
+.track-status.is-idle { color: var(--gold); }
+.track-status.is-idle .track-dot { background: var(--gold); }
+.track-status.is-offline { color: var(--danger); }
+.track-status.is-offline .track-dot { background: var(--danger); }
+
+@keyframes track-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(79, 174, 157, 0.45); }
+  70%  { box-shadow: 0 0 0 6px rgba(79, 174, 157, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 174, 157, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-status.is-live .track-dot { animation: none; }
+}
+
+/* Dim the readout when it isn't advancing (idle, or tracker offline)
+   so a frozen clock doesn't look like a broken one. */
+#main-elapsed.is-stale { opacity: 0.45; }

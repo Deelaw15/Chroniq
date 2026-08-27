@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.dependencies import get_db
-from backend.schemas import DailySummaryOut, WeeklySummaryOut, HeatmapOut
+from backend.schemas import DailySummaryOut, WeeklySummaryOut, HeatmapOut, LiveStatusOut
 from backend.services import aggregation
 
 router = APIRouter(prefix="/summary", tags=["summary"])
@@ -16,6 +16,13 @@ router = APIRouter(prefix="/summary", tags=["summary"])
 @router.get("/today", response_model=DailySummaryOut)
 def summary_today(db: Session = Depends(get_db)):
     return aggregation.get_daily_summary(db, date.today())
+
+
+@router.get("/live", response_model=LiveStatusOut)
+def summary_live(db: Session = Depends(get_db)):
+    """Real-time-ish today's active time + tracker liveness, for the
+    dashboard clock. Cheap enough to poll every few seconds."""
+    return aggregation.get_live_status(db)
 
 
 @router.get("/day", response_model=DailySummaryOut)

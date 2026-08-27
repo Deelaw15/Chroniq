@@ -55,6 +55,12 @@ DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "tracker.db"
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
+# Tracker heartbeat: the daemon rewrites this small JSON file every poll
+# so the backend (and, via it, the dashboard's live clock) can tell
+# whether the tracker is actually running right now and what it's
+# currently timing. It is disposable state, not history.
+STATUS_FILE = DATA_DIR / "tracker_status.json"
+
 # --- Logging ---
 LOG_DIR = BASE_DIR / "logs"
 LOG_FILE = LOG_DIR / "tracker.log"

@@ -44,11 +44,14 @@
       </div>
 
       <div class="focus-readout">
-        <span class="value" id="main-elapsed">04:12:00</span>
+        <span class="value" id="main-elapsed">00:00:00</span>
         <span class="label">Focus time today</span>
       </div>
 
-      <div class="session-status" id="session-status"><span class="dot"></span>Not tracking a session</div>
+      <div class="track-status" id="track-status" title="Whether the background activity tracker is currently running">
+        <span class="track-dot"></span>
+        <span id="track-status-text">Connecting…</span>
+      </div>
 
       <div class="spacer"></div>
       <button id="theme-switch-home" class="theme-icon-btn" aria-label="Switch to light mode">💡</button>
@@ -207,7 +210,7 @@
 
       <div class="settings-row">
         <div>
-          <div class="settings-row-label">Theme</div>cm
+          <div class="settings-row-label">Theme</div>
           <div class="settings-row-hint">Switch between dark and light background</div>
         </div>
         <button class="theme-toggle-btn" id="theme-toggle-btn">🌙 Dark</button>
@@ -263,7 +266,11 @@
         <label>Long break (minutes)</label>
         <input type="number" id="set-long" value="20" min="1" max="60">
       </div>
-      <div class="settings-hint">Changes apply to your next session (locked while a session is running).</div>
+      <div class="settings-field">
+        <label>Phase-change pop-up notifications</label>
+        <input type="checkbox" id="set-notify" checked>
+      </div>
+      <div class="settings-hint">Timer lengths apply to your next session (locked while a session is running). Notifications can be toggled any time.</div>
     </div>
 
     <div class="panel">
@@ -378,6 +385,9 @@
   </div>
 
 </div>
+
+<!-- Session pop-up notifications (pomodoro phase changes) render here -->
+<div id="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
 <script src="app.js"></script>
 

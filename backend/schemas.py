@@ -34,6 +34,17 @@ class DailySummaryOut(BaseModel):
     break_ratio: float  # 0.0-1.0, idle time as a fraction of total tracked time
 
 
+class LiveStatusOut(BaseModel):
+    as_of: str                         # ISO, naive UTC - when this was computed
+    tracker_online: bool               # is the tracker process alive right now?
+    is_idle: bool                      # is the user currently idle?
+    current_app: str | None            # app the tracker is currently timing
+    committed_active_seconds: float    # active time already written to the DB
+    in_progress_seconds: float         # active time in the not-yet-committed stretch
+    live_active_seconds: float         # committed + in_progress
+    total_idle_seconds: float
+
+
 class WeeklySummaryOut(BaseModel):
     start_date: str
     end_date: str

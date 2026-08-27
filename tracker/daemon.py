@@ -12,7 +12,9 @@ desktop app can stop the tracker cleanly and flush the final event.
 The existing `python scripts/run_tracker.py` workflow still works by
 calling run() with no argument.
 """
+import json
 import logging
+import os
 import time
 from datetime import datetime
 from threading import Event
@@ -21,6 +23,7 @@ from config.settings import (
     POLL_INTERVAL_SECONDS,
     IDLE_THRESHOLD_SECONDS,
     MIN_EVENT_DURATION_SECONDS,
+    STATUS_FILE,
 )
 from tracker.window_capture import get_active_window
 from tracker.idle_detector import is_idle
@@ -75,6 +78,39 @@ def _write_event(session, state: TrackerState, end_time: datetime):
     )
 
 
+def _write_heartbeat(state: "TrackerState | None") -> None:
+    """
+    Rewrite the tracker status file. Called every poll so its mtime /
+    `updated_at` doubles as a "tracker is alive" signal for the backend.
+    Written atomically (temp file + os.replace) so a reader never sees
+    a half-written file. Any failure here is non-fatal - the heartbeat
+    is a convenience for the dashboard, not part of tracking itself.
+    """
+    payload = {
+        "updated_at": datetime.utcnow().isoformat(),
+        "poll_interval_seconds": POLL_INTERVAL_SECONDS,
+        "current_app": (state.app_name if state else None),
+        "is_idle": (bool(state.is_idle) if state else False),
+        "state_start": (state.start_time.isoformat() if state else None),
+    }
+    try:
+        tmp = f"{STATUS_FILE}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh)
+        os.replace(tmp, STATUS_FILE)
+    except Exception as e:  # pragma: no cover - best effort only
+        logger.debug("Could not write heartbeat: %s", e)
+
+
+def _clear_heartbeat() -> None:
+    try:
+        os.remove(STATUS_FILE)
+    except FileNotFoundError:
+        pass
+    except Exception as e:  # pragma: no cover
+        logger.debug("Could not clear heartbeat: %s", e)
+
+
 def run(stop_event: Event | None = None):
     """Run the tracker until Ctrl+C or until stop_event is set."""
     logger.info(
@@ -106,6 +142,8 @@ def run(stop_event: Event | None = None):
             else:
                 current_state.window_title = window_title
 
+            _write_heartbeat(current_state)
+
             # In desktop mode this lets shutdown interrupt the normal poll
             # wait immediately. The original standalone mode still sleeps.
             if stop_event is not None:
@@ -133,4 +171,5 @@ def run(stop_event: Event | None = None):
                 )
 
         session.close()
+        _clear_heartbeat()
         logger.info("Tracker daemon stopped cleanly.")

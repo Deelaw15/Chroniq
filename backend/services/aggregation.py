@@ -22,9 +22,12 @@ entirely. Every function here converts each event's UTC timestamp to
 local time via _to_local() before comparing it to a calendar date or
 bucketing it by hour, rather than doing timezone-naive comparisons.
 """
-from datetime import datetime, timedelta, date, timezone
+import json
+from datetime import datetime, timedelta, date, time, timezone
+
 from sqlalchemy.orm import Session
 
+from config.settings import STATUS_FILE, POLL_INTERVAL_SECONDS
 from db.models import RawEvent
 
 
@@ -107,6 +110,87 @@ def get_daily_summary(session: Session, target_date: date) -> dict:
         "app_breakdown": breakdown,
         "app_switch_count": app_switch_count,
         "break_ratio": break_ratio,
+    }
+
+
+def _read_status_file() -> dict | None:
+    """Load the tracker heartbeat file, or None if absent/unreadable."""
+    try:
+        with open(STATUS_FILE, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
+        return None
+
+
+def _parse_naive_utc(value) -> datetime | None:
+    """Parse an ISO string the tracker wrote (naive UTC) back to a datetime."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _local_midnight_as_utc(local_day: date) -> datetime:
+    """Naive-UTC datetime for 00:00 local time on local_day."""
+    midnight_local = datetime.combine(local_day, time.min).astimezone()
+    return midnight_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def get_live_status(session: Session) -> dict:
+    """
+    A near-real-time view of today's active time, for the dashboard's
+    ticking clock. Unlike get_daily_summary (which only sees events the
+    tracker has already committed to the DB - i.e. nothing since the
+    last app switch), this adds the still-in-progress stretch the
+    tracker is currently timing, and reports whether the tracker
+    process is actually alive right now (via the heartbeat file's
+    freshness) so the UI can show "tracker offline" instead of a clock
+    that lies.
+    """
+    today = date.today()
+    daily = get_daily_summary(session, today)
+    committed = daily["total_active_seconds"]
+
+    now_utc = datetime.utcnow()
+    status = _read_status_file()
+
+    tracker_online = False
+    is_idle = False
+    current_app = None
+    in_progress = 0.0
+
+    if status:
+        updated_at = _parse_naive_utc(status.get("updated_at"))
+        poll = status.get("poll_interval_seconds") or POLL_INTERVAL_SECONDS
+        if updated_at is not None:
+            staleness = (now_utc - updated_at).total_seconds()
+            # Tolerate up to ~3 missed polls before declaring it offline.
+            tracker_online = -5 < staleness < (poll * 3 + 5)
+
+        if tracker_online:
+            is_idle = bool(status.get("is_idle"))
+            current_app = status.get("current_app")
+            state_start = _parse_naive_utc(status.get("state_start"))
+            if not is_idle and state_start is not None:
+                # Count only the part of the current stretch that lands
+                # on today (local), same rule get_daily_summary uses.
+                effective_start = max(state_start, _local_midnight_as_utc(today))
+                in_progress = max(0.0, (now_utc - effective_start).total_seconds())
+
+    return {
+        "as_of": now_utc.isoformat(),
+        "tracker_online": tracker_online,
+        "is_idle": is_idle,
+        "current_app": current_app,
+        "committed_active_seconds": committed,
+        "in_progress_seconds": in_progress,
+        "live_active_seconds": committed + in_progress,
+        "total_idle_seconds": daily["total_idle_seconds"],
     }
 
 

@@ -83,12 +83,85 @@ function colorForApp(appName) {
 }
 
 // ============================================================
+// Live "Focus time today" clock
+// The tracker only writes an event to the DB when you switch apps or
+// go idle, so /summary/today lags reality by however long you've sat
+// in the current app. /summary/live adds that in-progress stretch and
+// reports whether the tracker process is actually alive. We poll it
+// every few seconds and tick locally in between, so the readout moves
+// second-by-second while you work - visible proof the tracker is on.
+// ============================================================
+let liveClockSynced = false;
+const liveClock = {
+  baseSeconds: 0,   // live_active_seconds at the last sync
+  baseAt: 0,        // performance.now() at the last sync
+  online: false,
+  idle: false,
+  currentApp: null,
+};
+
+function renderLiveClock() {
+  const el = document.getElementById('main-elapsed');
+  if (!el) return;
+  const running = liveClock.online && !liveClock.idle;
+  const seconds = running
+    ? liveClock.baseSeconds + (performance.now() - liveClock.baseAt) / 1000
+    : liveClock.baseSeconds;
+  el.textContent = formatHMS(seconds);
+  el.classList.toggle('is-stale', liveClockSynced && !running);
+
+  const chip = document.getElementById('track-status');
+  const text = document.getElementById('track-status-text');
+  if (!chip || !text) return;
+  chip.classList.remove('is-live', 'is-idle', 'is-offline');
+  if (!liveClockSynced) {
+    text.textContent = 'Connecting…';
+  } else if (!liveClock.online) {
+    chip.classList.add('is-offline');
+    text.textContent = 'Tracker offline';
+  } else if (liveClock.idle) {
+    chip.classList.add('is-idle');
+    text.textContent = 'Idle';
+  } else {
+    chip.classList.add('is-live');
+    text.textContent = liveClock.currentApp
+      ? `Tracking · ${liveClock.currentApp}`
+      : 'Tracking';
+  }
+}
+
+async function syncLiveClock() {
+  try {
+    const live = await fetchJSON('/summary/live');
+    liveClock.baseSeconds = Number(live.live_active_seconds) || 0;
+    liveClock.baseAt = performance.now();
+    liveClock.online = !!live.tracker_online;
+    liveClock.idle = !!live.is_idle;
+    liveClock.currentApp = live.current_app || null;
+  } catch (err) {
+    // Backend unreachable: keep the last value on screen, flag offline.
+    liveClock.online = false;
+  }
+  liveClockSynced = true;
+  renderLiveClock();
+}
+
+syncLiveClock();
+setInterval(syncLiveClock, 15000);
+setInterval(renderLiveClock, 1000);
+
+// ============================================================
 // Rendering: top bar
 // ============================================================
 function renderTopBar(today) {
-  document.getElementById('main-elapsed').textContent = formatHMS(today.total_active_seconds);
-  // Idle time used to also show here, but it's redundant with the
-  // "Idle Time" KPI card below - removed to free up header space.
+  // "Focus time today" (#main-elapsed) is driven by the live clock -
+  // see the Live clock section below - so it can tick every second and
+  // include the stretch the tracker hasn't committed to the DB yet.
+  // Seed it here so there's a number before the first live sync lands.
+  if (!liveClockSynced) {
+    const el = document.getElementById('main-elapsed');
+    if (el) el.textContent = formatHMS(today.total_active_seconds);
+  }
 }
 
 // ============================================================
@@ -551,8 +624,17 @@ function applySettingsToInputs() {
   document.getElementById('set-short').value = settings.shortBreakMin;
   document.getElementById('set-cycles').value = settings.cyclesBeforeLong;
   document.getElementById('set-long').value = settings.longBreakMin;
+  const notifyToggle = document.getElementById('set-notify');
+  if (notifyToggle) notifyToggle.checked = notificationsEnabled();
 }
 applySettingsToInputs();
+
+const notifyToggleEl = document.getElementById('set-notify');
+if (notifyToggleEl) {
+  notifyToggleEl.addEventListener('change', () => {
+    setNotificationsEnabled(notifyToggleEl.checked);
+  });
+}
 
 let sessionState = 'idle';
 let phase = 'idle';
@@ -580,6 +662,112 @@ function phaseDurationSeconds(p) {
   return 0;
 }
 
+// ============================================================
+// Session pop-up notifications
+// Fires on every automatic phase change: when a focus block runs
+// down (break starts) and when a break runs down (focus resumes).
+// Always shows an in-app toast; also raises a desktop notification
+// when the OS has granted permission (works in the packaged Edge
+// app window; the toast is the fallback everywhere else).
+// ============================================================
+const toastStack = document.getElementById('toast-stack');
+
+function notificationsEnabled() {
+  return localStorage.getItem('focusTracker.notifyEnabled') !== 'false';
+}
+
+function setNotificationsEnabled(on) {
+  localStorage.setItem('focusTracker.notifyEnabled', on ? 'true' : 'false');
+  if (on) requestNotifyPermission();
+}
+
+function requestNotifyPermission() {
+  // Must be called from a user gesture (e.g. clicking Start) or the
+  // browser silently ignores the request.
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  } catch (e) { /* Notification API absent in this shell */ }
+}
+
+function dismissToast(el) {
+  if (!el || el.classList.contains('toast-out')) return;
+  el.classList.add('toast-out');
+  setTimeout(() => el.remove(), 220);
+}
+
+function showToast(title, text, tone) {
+  if (!toastStack) return;
+  const el = document.createElement('div');
+  el.className = 'toast tone-' + (tone === 'break' ? 'break' : 'focus');
+
+  const icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.textContent = tone === 'break' ? '☕' : '⏱️';
+
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+  const t = document.createElement('div');
+  t.className = 'toast-title';
+  t.textContent = title;
+  const p = document.createElement('div');
+  p.className = 'toast-text';
+  p.textContent = text;
+  body.append(t, p);
+
+  const close = document.createElement('button');
+  close.className = 'toast-close';
+  close.setAttribute('aria-label', 'Dismiss');
+  close.textContent = '✕';
+  close.addEventListener('click', () => dismissToast(el));
+
+  el.append(icon, body, close);
+  toastStack.appendChild(el);
+
+  // Never stack more than three at once.
+  while (toastStack.children.length > 3) toastStack.firstElementChild.remove();
+
+  setTimeout(() => dismissToast(el), 9000);
+}
+
+function notifySession(title, text, tone) {
+  if (!notificationsEnabled()) return;
+  showToast(title, text, tone);
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification(title, {
+        body: text,
+        tag: 'chroniq-session',
+        renotify: true,
+        icon: 'logo.png',
+      });
+      n.onclick = () => { try { window.focus(); } catch (e) {} n.close(); };
+      setTimeout(() => n.close(), 9000);
+    }
+  } catch (e) { /* Notification API absent (e.g. some WebView hosts) */ }
+}
+
+function announcePhaseChange(fromPhase, toPhase) {
+  const mins = Math.max(1, Math.round(phaseDurationSeconds(toPhase) / 60));
+  const taskSuffix = activeTaskName ? ` (${activeTaskName})` : '';
+  if (fromPhase === 'focus') {
+    const label = toPhase === 'long_break' ? 'Long break' : 'Break';
+    notifySession(
+      `Focus block complete${taskSuffix}`,
+      `${label} started — ${mins} min. Step away from the screen.`,
+      'break',
+    );
+  } else {
+    const label = fromPhase === 'long_break' ? 'Long break' : 'Break';
+    notifySession(
+      `${label} over`,
+      `Focus block started — ${mins} min. Back to it${taskSuffix}.`,
+      'focus',
+    );
+  }
+}
+
 function phaseDisplayName(p) {
   if (p === 'focus') return 'Focus';
   if (p === 'short_break') return 'Short Break';
@@ -605,6 +793,7 @@ function tick() {
 }
 
 function advancePhase() {
+  const fromPhase = phase;
   if (phase === 'focus') {
     completedCycles += 1;
     phase = (completedCycles >= settings.cyclesBeforeLong) ? 'long_break' : 'short_break';
@@ -615,6 +804,7 @@ function advancePhase() {
     phase = 'focus';
   }
   remainingSeconds = phaseDurationSeconds(phase);
+  announcePhaseChange(fromPhase, phase);
   updateUI();
 }
 
@@ -634,23 +824,26 @@ function updateUI() {
     phase === 'long_break' ? 'Long break remaining' :
     'Focus block remaining';
 
+  // The session-status chip is optional in the markup - guard for it.
+  const setSessionChip = (cls, html) => {
+    if (!statusEl) return;
+    statusEl.className = cls;
+    statusEl.innerHTML = html;
+  };
   if (sessionState === 'running') {
-    statusEl.className = 'session-status running';
-    statusEl.innerHTML = '<span class="dot"></span>' + phaseDisplayName(phase);
+    setSessionChip('session-status running', '<span class="dot"></span>' + phaseDisplayName(phase));
     nowDot.classList.remove('idle-dot');
   } else if (sessionState === 'paused') {
-    statusEl.className = 'session-status';
-    statusEl.innerHTML = '<span class="dot"></span>' + phaseDisplayName(phase) + ' (paused)';
+    setSessionChip('session-status', '<span class="dot"></span>' + phaseDisplayName(phase) + ' (paused)');
     nowDot.classList.add('idle-dot');
   } else {
-    statusEl.className = 'session-status';
-    statusEl.innerHTML = '<span class="dot"></span>Not tracking a session';
+    setSessionChip('session-status', '<span class="dot"></span>Not tracking a session');
     nowDot.classList.add('idle-dot');
     nowName.textContent = 'No active session';
     nowSub.textContent = 'Click Start Focus or start a task';
   }
 
-  document.querySelectorAll('.settings-field input').forEach(inp => {
+  document.querySelectorAll('.settings-field input:not([type="checkbox"])').forEach(inp => {
     inp.disabled = (sessionState !== 'idle');
   });
 
@@ -658,6 +851,10 @@ function updateUI() {
 }
 
 function startSession(taskName, taskTag, designatedDurationMin) {
+  // Starting a session is a user gesture - the only point where the
+  // browser will honour a notification permission prompt.
+  requestNotifyPermission();
+
   sessionState = 'running';
   phase = 'focus';
   completedCycles = 0;

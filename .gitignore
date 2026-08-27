@@ -1,4 +1,5 @@
 data/*.db
+data/tracker_status.json
 logs/*.log
 __pycache__/
 *.pyc
