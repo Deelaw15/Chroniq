@@ -1195,8 +1195,11 @@ body {
    Balanced native fullscreen layout
    Keeps the restored-window layout intact, but prevents any one
    dashboard section from dominating when the app is maximized.
+   Applies from ~1150px wide so a normal (non-maximized) desktop
+   window gets the same filled proportions instead of the small,
+   floating arc / short heatmap the narrower fallback produced.
    ============================================================ */
-@media (min-width: 1400px) and (min-height: 800px) {
+@media (min-width: 1150px) and (min-height: 780px) {
   /* Slightly calmer outer proportions on a large native window. */
   .frame {
     padding: 12px;
@@ -1247,13 +1250,13 @@ body {
     padding: 5px 0;
   }
 
-  /* Split the lower report area intentionally: roughly 40% goal/apps,
-     60% heatmap. The heatmap gets prominence without swallowing the page. */
+  /* Goal/apps take only the height they need; the heatmap gets every
+     remaining pixel so it fills the panel instead of leaving a gap. */
   #view-today .content-grid {
     height: 100%;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: minmax(155px, 0.42fr) minmax(220px, 0.58fr);
+    grid-template-rows: auto minmax(150px, 1fr);
     gap: 10px;
   }
 
@@ -1272,23 +1275,35 @@ body {
   #view-today .gauge-wrap {
     flex: 1 1 auto;
     justify-content: center;
+    gap: 0;
   }
 
+  /* Size the arc to the panel: it was fixed at 152px and left a wide
+     empty margin on both sides. Grows with the window, capped so it
+     never looks oversized. aspect-ratio keeps the SVG undistorted. */
   #view-today .gauge-visual {
-    width: 152px;
-    height: 79px;
+    width: clamp(164px, 14vw, 202px);
+    height: auto;
+    aspect-ratio: 220 / 126;
+    max-height: 104px;
   }
 
   #view-today .gauge-pct {
-    font-size: 23px !important;
+    font-size: clamp(23px, 2vw, 29px) !important;
+  }
+
+  #view-today .gauge-sub {
+    font-size: clamp(8px, 0.72vw, 10px) !important;
   }
 
   #view-today .gauge-goal-text {
-    font-size: 9px !important;
+    font-size: clamp(9px, 0.8vw, 11px) !important;
+    margin-top: 7px !important;
   }
 
   #view-today #edit-goal-btn {
-    margin-top: 4px !important;
+    margin-top: 9px !important;
+    padding: 6px 14px !important;
   }
 
   #view-today #top-apps-list {
@@ -1321,23 +1336,32 @@ body {
     letter-spacing: 0.1em;
   }
 
+  /* The seven day-rows divide the panel height evenly and stretch their
+     cells to match, so the grid fills the panel instead of sitting as a
+     short block with dead space below it. Rows are capped so they never
+     turn into fat bars on a tall window. */
   #view-today #heatmap-days {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 6px;
+    justify-content: space-evenly;
+    gap: clamp(3px, 0.9vh, 7px);
   }
 
   #view-today .heat-day-row {
+    flex: 1 1 0;
+    min-height: 14px;
+    max-height: 30px;
     grid-template-columns: 40px repeat(24, minmax(0, 1fr));
     gap: 4px;
     margin-bottom: 0;
+    align-items: stretch;
   }
 
   #view-today .heat-cell {
-    height: 18px;
+    height: 100%;
+    aspect-ratio: auto;
     border-radius: 5px;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.035),
@@ -1429,11 +1453,11 @@ body {
   }
 
   #view-today .content-grid {
-    grid-template-rows: minmax(165px, 0.40fr) minmax(245px, 0.60fr);
+    grid-template-rows: auto minmax(260px, 1fr);
   }
 
-  #view-today .heat-cell {
-    height: 20px;
+  #view-today .heat-day-row {
+    max-height: 34px;
   }
 
   #view-weekly .content-grid {
