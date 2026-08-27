@@ -18,7 +18,7 @@ class RawEvent(Base):
     __tablename__ = "raw_events"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    start_time = Column(DateTime, nullable=False)
+    start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
     duration_sec = Column(Float, nullable=False)
     app_name = Column(String, nullable=False)       # e.g. "Code.exe"

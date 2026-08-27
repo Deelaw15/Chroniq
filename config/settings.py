@@ -9,23 +9,37 @@ from pathlib import Path
 
 def _resolve_base_dir() -> Path:
     """
-    Where the database and logs live.
+    Resolve the writable application-data directory.
 
-    Running normally (python scripts/run_tracker.py): this is the
-    project folder, same as before.
+    Development:
+        Keep using the project directory so existing development data
+        continues to work.
 
-    Running as a packaged .exe (PyInstaller): sys.frozen is set, and
-    the exe unpacks itself into a TEMPORARY folder that gets deleted
-    when the app closes. Writing the database there would silently
-    lose all tracked data on every restart - so packaged builds
-    instead use the standard Windows per-user data folder
-    (%APPDATA%\\FocusTracker), which persists across restarts,
-    updates, and reinstalls.
+    Packaged Windows:
+        %LOCALAPPDATA%\\FocusTracker
+
+    Packaged macOS:
+        ~/Library/Application Support/FocusTracker
     """
-    if getattr(sys, "frozen", False):
-        appdata = os.environ.get("APPDATA") or str(Path.home())
-        return Path(appdata) / "FocusTracker"
-    return Path(__file__).resolve().parent.parent
+    if not getattr(sys, "frozen", False):
+        return Path(__file__).resolve().parent.parent
+
+    if sys.platform == "win32":
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            return Path(local_appdata) / "FocusTracker"
+
+        return Path.home() / "AppData" / "Local" / "FocusTracker"
+
+    if sys.platform == "darwin":
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "FocusTracker"
+        )
+
+    return Path.home() / ".local" / "share" / "FocusTracker"
 
 
 BASE_DIR = _resolve_base_dir()

@@ -2,8 +2,9 @@
 Engine and session management. Import `SessionLocal` wherever you need
 to talk to the DB; call `init_db()` once at startup to create tables.
 """
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+
 from config.settings import DATABASE_URL
 from db.models import Base
 
@@ -12,10 +13,29 @@ from db.models import Base
 # daemon may write from a background thread.
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 5,
+    },
 )
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+@event.listens_for(engine, "connect")
+def configure_sqlite(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+
+    cursor.execute("PRAGMA journal_mode=WAL;")
+    cursor.execute("PRAGMA synchronous=NORMAL;")
+    cursor.execute("PRAGMA busy_timeout=5000;")
+
+    cursor.close()
+
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
 
 
 def init_db():
