@@ -1,9 +1,9 @@
 # --- Phase 0/1: Tracker + DB (required now) ---
-# pywin32 is Windows-only (active-window + idle detection). The marker
-# lets `pip install -r requirements.txt` succeed on other platforms;
-# the tracker itself still needs a per-OS backend there (see
-# tracker/window_capture.py).
+# The active-window + idle backends are per-OS (see tracker/window_capture.py).
+# Markers keep `pip install -r requirements.txt` working on every platform.
 pywin32>=307; sys_platform == "win32"
+pyobjc-framework-Cocoa>=10.1; sys_platform == "darwin"
+pyobjc-framework-Quartz>=10.1; sys_platform == "darwin"
 psutil==6.0.0
 sqlalchemy>=2.0.36
 python-dotenv==1.0.1

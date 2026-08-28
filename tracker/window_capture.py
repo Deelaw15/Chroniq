@@ -1,42 +1,25 @@
 """
-Windows-specific active window detection.
+Active-window detection - platform dispatcher.
 
-Uses pywin32 to ask the OS: "what window is focused right now, and
-which process owns it?" This file is the ONLY place that touches the
-Windows API directly - if you ever port to Mac/Linux, this is the
-only file you'd swap out (see tracker/daemon.py, which only calls
-get_active_window() and doesn't care how it's implemented).
+tracker/daemon.py only ever calls get_active_window() and doesn't care
+how it's implemented. The per-OS implementations live in siblings:
+
+    _capture_windows.py   pywin32
+    _capture_macos.py     pyobjc (Cocoa / Quartz)
+
+Only the module matching the current OS is imported, so the other
+platform's dependencies never need to be installed.
 """
-import win32gui
-import win32process
-import psutil
+import sys
 
-
-def get_active_window():
-    """
-    Returns (app_name, window_title) for the currently focused window.
-    Returns (None, None) if nothing could be determined (e.g. desktop
-    focused, or a system window with no accessible process).
-    """
-    try:
-        hwnd = win32gui.GetForegroundWindow()
-        if not hwnd:
-            return None, None
-
-        window_title = win32gui.GetWindowText(hwnd)
-
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        if not pid:
-            return None, window_title
-
-        try:
-            process = psutil.Process(pid)
-            app_name = process.name()  # e.g. "chrome.exe", "Code.exe"
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            app_name = "Unknown"
-
-        return app_name, window_title
-
-    except Exception:
-        # Never let a capture failure crash the daemon - just skip this sample.
+if sys.platform == "win32":
+    from tracker._capture_windows import get_active_window
+elif sys.platform == "darwin":
+    from tracker._capture_macos import get_active_window
+else:  # pragma: no cover - unsupported platform, degrade to a no-op
+    def get_active_window():
+        """No active-window backend for this platform."""
         return None, None
+
+
+__all__ = ["get_active_window"]
