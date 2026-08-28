@@ -29,5 +29,5 @@ def export_raw_events_csv(db: Session = Depends(get_db)):
     return StreamingResponse(
         buffer,
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=focus_tracker_export.csv"},
+        headers={"Content-Disposition": "attachment; filename=chroniq_export.csv"},
     )

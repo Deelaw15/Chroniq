@@ -1,11 +1,10 @@
 # PyInstaller spec file - run this ON WINDOWS with:
-#   pyinstaller build_windows/focus_tracker.spec
+#   pyinstaller build_windows/chroniq.spec
 #
 # This cannot be run from Linux/Mac - PyInstaller bundles
 # platform-native binaries, so the build must happen on the same OS
 # you're targeting. See build_windows/README.md for full instructions.
 
-import sys
 from pathlib import Path
 
 block_cipher = None

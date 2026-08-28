@@ -6,9 +6,9 @@ and run_backend.py), the packaged app runs BOTH in one process using
 threads, then opens your browser to the dashboard automatically. This
 is what PyInstaller bundles into Chroniq.exe.
 
-Not meant to be run with `python packaging/app_launcher.py` for daily
-development - use scripts/run_tracker.py + scripts/run_backend.py for
-that instead, since they give you two separate windows of logs and
+Not meant to be run with `python build_windows/app_launcher.py` for
+daily development - use scripts/run_tracker.py + scripts/run_backend.py
+for that instead, since they give you two separate windows of logs and
 support uvicorn's --reload for editing the backend. This file is only
 for the packaged build.
 """
@@ -22,7 +22,7 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
-# Allow running from the packaging/ folder during manual testing
+# Allow running from the build_windows/ folder during manual testing
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config.settings import LOG_FILE
@@ -32,7 +32,7 @@ from tracker.daemon import run as run_tracker_loop
 
 def setup_logging():
     handlers = [logging.FileHandler(LOG_FILE, encoding="utf-8")]
-    # In windowed/no-console mode (see focus_tracker.spec), there is no
+    # In windowed/no-console mode (see chroniq.spec), there is no
     # real stdout - it's either None or a dummy stream, depending on
     # the PyInstaller version. Writing to it can crash the app on the
     # very first log line. The file handler above is always safe and
@@ -51,7 +51,7 @@ def setup_logging():
 def show_startup_error(message: str):
     """
     Last-resort error display for when something fails during startup.
-    With no console window (see focus_tracker.spec), a crash would
+    With no console window (see chroniq.spec), a crash would
     otherwise be completely invisible - the app would just do nothing
     and a non-technical tester would have no idea why, or what to do
     about it. This shows a plain Windows message box instead, using
