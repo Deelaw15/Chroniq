@@ -18,6 +18,7 @@ import os
 import time
 from datetime import datetime
 from threading import Event
+from typing import Optional
 
 from config.settings import (
     POLL_INTERVAL_SECONDS,
@@ -78,7 +79,7 @@ def _write_event(session, state: TrackerState, end_time: datetime):
     )
 
 
-def _write_heartbeat(state: "TrackerState | None") -> None:
+def _write_heartbeat(state: Optional["TrackerState"]) -> None:
     """
     Rewrite the tracker status file. Called every poll so its mtime /
     `updated_at` doubles as a "tracker is alive" signal for the backend.
@@ -111,7 +112,7 @@ def _clear_heartbeat() -> None:
         logger.debug("Could not clear heartbeat: %s", e)
 
 
-def run(stop_event: Event | None = None):
+def run(stop_event: Optional[Event] = None):
     """Run the tracker until Ctrl+C or until stop_event is set."""
     logger.info(
         "Tracker daemon starting. Poll interval=%ss, idle threshold=%ss",

@@ -3,6 +3,7 @@
 the dashboard (Phase 4) will primarily call.
 """
 from datetime import date, timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -35,7 +36,7 @@ def summary_day(
 
 @router.get("/week", response_model=WeeklySummaryOut)
 def summary_week(
-    start_date: date | None = Query(
+    start_date: Optional[date] = Query(
         None, description="YYYY-MM-DD. Defaults to 6 days ago (rolling week ending today)."
     ),
     db: Session = Depends(get_db),
@@ -47,7 +48,7 @@ def summary_week(
 
 @router.get("/heatmap", response_model=HeatmapOut)
 def summary_heatmap(
-    start_date: date | None = Query(
+    start_date: Optional[date] = Query(
         None, description="YYYY-MM-DD, must be a Monday. Defaults to the Monday of the current calendar week."
     ),
     db: Session = Depends(get_db),
