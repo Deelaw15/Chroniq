@@ -28,14 +28,26 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-chroniq-notary}"
 
 [ -d "$APP" ] || { echo "build first: build_macos/build.sh"; exit 1; }
 
-echo "==> Signing bundled binaries + app (hardened runtime)"
-# Sign nested Mach-O first, then the app itself.
-find "$APP/Contents" \( -name "*.so" -o -name "*.dylib" \) -print0 \
-    | xargs -0 -I{} codesign --force --timestamp --options runtime --sign "$DEV_ID" "{}"
+echo "==> Cleaning stale attributes"
+xattr -cr "$APP"
+
+echo "==> Signing every Mach-O inside the bundle (deepest first)"
+# PyInstaller apps contain lots of unsigned .so/.dylib and extensionless
+# binaries; each must carry a hardened-runtime signature or notarization
+# rejects the bundle.
+find "$APP/Contents" -type f -print0 \
+  | while IFS= read -r -d '' f; do
+        if file -b "$f" | grep -q 'Mach-O'; then
+            codesign --force --timestamp --options runtime \
+                --sign "$DEV_ID" "$f"
+        fi
+    done
+
+echo "==> Signing the app bundle"
 codesign --force --deep --timestamp --options runtime \
     --entitlements "$ENTITLEMENTS" \
     --sign "$DEV_ID" "$APP"
-codesign --verify --strict --verbose=2 "$APP"
+codesign --verify --strict --deep --verbose=2 "$APP"
 
 echo "==> Building DMG"
 ./make_dmg.sh
@@ -43,7 +55,9 @@ echo "==> Building DMG"
 echo "==> Signing DMG"
 codesign --force --timestamp --sign "$DEV_ID" "$DMG"
 
-echo "==> Notarizing (this uploads the DMG to Apple and waits)"
+echo "==> Notarizing (uploads the DMG to Apple and waits)"
+echo "    If this is rejected, inspect why with:"
+echo "    xcrun notarytool log <submission-id> --keychain-profile $NOTARY_PROFILE"
 xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 
 echo "==> Stapling the notarization ticket"
