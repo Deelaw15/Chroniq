@@ -639,6 +639,11 @@ if (notifyToggleEl) {
 let sessionState = 'idle';
 let phase = 'idle';
 let remainingSeconds = 0;
+// Absolute wall-clock time (epoch ms) the current running phase ends.
+// The countdown is derived from this, NOT from counting interval ticks -
+// setInterval is throttled to a crawl while the window is minimized or
+// hidden, so tick-counting would freeze the timer. null when idle/paused.
+let phaseEndsAt = null;
 let completedCycles = 0;
 let timerInterval = null;
 let activeTaskName = null;
@@ -656,9 +661,9 @@ const nowDot = document.getElementById('now-dot');
 const cycleDotsEl = document.getElementById('cycle-dots');
 
 function phaseDurationSeconds(p) {
-  if (p === 'focus') return settings.focusMin * 60;
-  if (p === 'short_break') return settings.shortBreakMin * 60;
-  if (p === 'long_break') return settings.longBreakMin * 60;
+  if (p === 'focus') return Math.max(1, settings.focusMin * 60);
+  if (p === 'short_break') return Math.max(1, settings.shortBreakMin * 60);
+  if (p === 'long_break') return Math.max(1, settings.longBreakMin * 60);
   return 0;
 }
 
@@ -786,13 +791,16 @@ function renderCycleDots() {
   }
 }
 
-function tick() {
-  remainingSeconds -= 1;
-  nowElapsed.textContent = formatMMSS(remainingSeconds);
-  if (remainingSeconds <= 0) advancePhase();
+// Anchor the running phase to end `seconds` from now.
+function armPhase(seconds) {
+  remainingSeconds = Math.max(0, Math.round(seconds));
+  phaseEndsAt = Date.now() + remainingSeconds * 1000;
 }
 
-function advancePhase() {
+// Move to the next phase. Chains phaseEndsAt off the *previous* end
+// rather than "now" so that catching up through several boundaries
+// missed while minimized stays aligned to real elapsed time.
+function advancePhase(announce) {
   const fromPhase = phase;
   if (phase === 'focus') {
     completedCycles += 1;
@@ -803,9 +811,33 @@ function advancePhase() {
     completedCycles = 0;
     phase = 'focus';
   }
-  remainingSeconds = phaseDurationSeconds(phase);
-  announcePhaseChange(fromPhase, phase);
-  updateUI();
+  const dur = phaseDurationSeconds(phase);
+  remainingSeconds = dur;
+  phaseEndsAt = (phaseEndsAt == null ? Date.now() : phaseEndsAt) + dur * 1000;
+  if (announce) announcePhaseChange(fromPhase, phase);
+}
+
+// Recompute the countdown from the wall clock and roll past any phase
+// boundaries that have already elapsed. Runs every second while the
+// window is visible, and immediately when it regains focus.
+function syncTimer() {
+  if (sessionState !== 'running' || phaseEndsAt == null) return;
+
+  let advanced = false;
+  let guard = 0;
+  while (Date.now() >= phaseEndsAt && guard++ < 1000) {
+    // Only play the phase-change notification for a boundary that just
+    // happened - not for ones we're replaying after a long minimize.
+    advancePhase(Date.now() - phaseEndsAt < 2000);
+    advanced = true;
+  }
+
+  remainingSeconds = Math.max(0, Math.ceil((phaseEndsAt - Date.now()) / 1000));
+  if (advanced) {
+    updateUI();
+  } else {
+    nowElapsed.textContent = formatMMSS(remainingSeconds);
+  }
 }
 
 function updateUI() {
@@ -862,11 +894,10 @@ function startSession(taskName, taskTag, designatedDurationMin) {
   // If the task provides a designated duration (minutes), use that for this
   // session's initial focus block. Otherwise fall back to the configured
   // pomodoro focus length.
-  if (designatedDurationMin && !isNaN(designatedDurationMin) && designatedDurationMin > 0) {
-    remainingSeconds = Math.floor(designatedDurationMin * 60);
-  } else {
-    remainingSeconds = phaseDurationSeconds('focus');
-  }
+  const firstBlockSeconds = (designatedDurationMin && !isNaN(designatedDurationMin) && designatedDurationMin > 0)
+    ? Math.floor(designatedDurationMin * 60)
+    : phaseDurationSeconds('focus');
+  armPhase(firstBlockSeconds);
 
   if (taskName) {
     activeTaskName = taskName;
@@ -878,17 +909,23 @@ function startSession(taskName, taskTag, designatedDurationMin) {
     nowSub.textContent = 'Manual session';
   }
 
-  timerInterval = setInterval(tick, 1000);
+  timerInterval = setInterval(syncTimer, 1000);
   updateUI();
 }
 
 function pauseOrResumeSession() {
   if (sessionState === 'running') {
+    syncTimer();  // settle any boundary that just passed before freezing
     sessionState = 'paused';
     clearInterval(timerInterval);
+    timerInterval = null;
+    // Freeze the remaining time and drop the wall-clock anchor.
+    remainingSeconds = Math.max(0, Math.ceil((phaseEndsAt - Date.now()) / 1000));
+    phaseEndsAt = null;
   } else if (sessionState === 'paused') {
     sessionState = 'running';
-    timerInterval = setInterval(tick, 1000);
+    armPhase(remainingSeconds);
+    timerInterval = setInterval(syncTimer, 1000);
   }
   updateUI();
 }
@@ -897,7 +934,9 @@ function stopSession() {
   sessionState = 'idle';
   phase = 'idle';
   clearInterval(timerInterval);
+  timerInterval = null;
   remainingSeconds = 0;
+  phaseEndsAt = null;
   completedCycles = 0;
   activeTaskName = null;
   document.querySelectorAll('.task-row.active-task').forEach(row => {
@@ -911,6 +950,16 @@ function stopSession() {
 btnStart.addEventListener('click', () => startSession(null, null));
 btnPause.addEventListener('click', pauseOrResumeSession);
 btnStop.addEventListener('click', stopSession);
+
+// The 1s interval is throttled hard (or paused outright) while the app
+// is minimized / hidden, so also catch the timer up the instant the
+// window comes back - don't wait for the next lazy tick.
+['visibilitychange', 'focus', 'pageshow'].forEach((evt) => {
+  const target = evt === 'visibilitychange' ? document : window;
+  target.addEventListener(evt, () => {
+    if (sessionState === 'running') syncTimer();
+  });
+});
 
 // ============================================================
 // Task sessions (persisted locally)

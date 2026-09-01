@@ -2,8 +2,15 @@
 Pydantic models define the exact JSON shape the API returns. Keeping
 these separate from db/models.py (SQLAlchemy) is deliberate - the DB
 schema and the API contract are allowed to evolve independently.
+
+NOTE: uses Optional[X] rather than the newer "X | None" syntax
+throughout - the latter only works at runtime on Python 3.10+, and
+crashes at import time on 3.9 (which some build environments,
+including at least one Mac used for building this app, still run).
+Optional[X] means exactly the same thing but works on every version.
 """
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -13,7 +20,7 @@ class RawEventOut(BaseModel):
     end_time: datetime
     duration_sec: float
     app_name: str
-    window_title: str | None
+    window_title: Optional[str]
     is_idle: bool
 
     class Config:
@@ -38,7 +45,7 @@ class LiveStatusOut(BaseModel):
     as_of: str                         # ISO, naive UTC - when this was computed
     tracker_online: bool               # is the tracker process alive right now?
     is_idle: bool                      # is the user currently idle?
-    current_app: str | None            # app the tracker is currently timing
+    current_app: Optional[str]         # app the tracker is currently timing
     committed_active_seconds: float    # active time already written to the DB
     in_progress_seconds: float         # active time in the not-yet-committed stretch
     live_active_seconds: float         # committed + in_progress
@@ -50,7 +57,7 @@ class WeeklySummaryOut(BaseModel):
     end_date: str
     daily_totals: list[dict]  # [{"date": "...", "active_seconds": ...}, ...]
     top_apps: list[AppBreakdownItem]
-    most_active_day: str | None  # date string, e.g. "2026-08-22"
+    most_active_day: Optional[str]  # date string, e.g. "2026-08-22"
     avg_app_switch_count: float
 
 

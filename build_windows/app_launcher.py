@@ -20,6 +20,7 @@ import time
 import shutil
 import subprocess
 import webbrowser
+from typing import Optional
 from pathlib import Path
 
 # Allow running from the build_windows/ folder during manual testing
@@ -82,7 +83,7 @@ def run_tracker_thread():
         logging.getLogger("launcher").exception("Tracker thread crashed")
 
 
-def _find_edge() -> str | None:
+def _find_edge() -> Optional[str]:
     """Locates msedge.exe. Edge ships built into every Windows 10/11
     install, so this should virtually always succeed - but a fallback
     exists below in case it doesn't (e.g. a stripped-down Windows N

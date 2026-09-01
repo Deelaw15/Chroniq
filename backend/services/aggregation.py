@@ -24,6 +24,7 @@ bucketing it by hour, rather than doing timezone-naive comparisons.
 """
 import json
 from datetime import datetime, timedelta, date, time, timezone
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -113,7 +114,7 @@ def get_daily_summary(session: Session, target_date: date) -> dict:
     }
 
 
-def _read_status_file() -> dict | None:
+def _read_status_file() -> Optional[dict]:
     """Load the tracker heartbeat file, or None if absent/unreadable."""
     try:
         with open(STATUS_FILE, "r", encoding="utf-8") as fh:
@@ -122,7 +123,7 @@ def _read_status_file() -> dict | None:
         return None
 
 
-def _parse_naive_utc(value) -> datetime | None:
+def _parse_naive_utc(value) -> Optional[datetime]:
     """Parse an ISO string the tracker wrote (naive UTC) back to a datetime."""
     if not value:
         return None
