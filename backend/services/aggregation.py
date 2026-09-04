@@ -26,6 +26,7 @@ import json
 from datetime import datetime, timedelta, date, time, timezone
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config.settings import STATUS_FILE, POLL_INTERVAL_SECONDS
@@ -310,4 +311,84 @@ def get_hourly_heatmap(session: Session, start_date: date) -> dict:
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "days": days,
+    }
+
+
+def _split_event_by_local_day(event: RawEvent) -> list[tuple[date, float]]:
+    """
+    Same idea as _split_event_by_local_hour but coarser - splits one
+    event's active duration across every local CALENDAR DAY it
+    overlaps, not hours. A session that runs from 11:40pm to 12:20am
+    local time contributes 20min to the first day and 20min to the
+    second, rather than all 40min landing on whichever day it started.
+    """
+    start_local = _to_local(event.start_time)
+    end_local = _to_local(event.end_time)
+
+    buckets = []
+    cursor = start_local
+    while cursor < end_local:
+        day_start = cursor.replace(hour=0, minute=0, second=0, microsecond=0)
+        next_day = day_start + timedelta(days=1)
+        bucket_end = min(end_local, next_day)
+        seconds_in_bucket = (bucket_end - cursor).total_seconds()
+        buckets.append((cursor.date(), seconds_in_bucket))
+        cursor = bucket_end
+
+    return buckets
+
+
+def get_streak_data(session: Session, days: int = 120) -> dict:
+    """
+    Returns daily active-seconds totals for the last `days` local
+    calendar days (today inclusive), plus an all-time total across
+    every tracked event ever. Used by the frontend to compute streaks
+    and cumulative-hours achievements against the user's CURRENT daily
+    goal - the goal itself lives in browser localStorage (a personal
+    preference, not tracked data), not here, so streak/achievement
+    logic that depends on it is computed client-side against this raw
+    daily-totals data rather than baked into the backend response.
+    """
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+
+    window_start = datetime.combine(start_date - timedelta(days=1), datetime.min.time())
+    window_end = datetime.combine(today + timedelta(days=2), datetime.min.time())
+
+    candidates = (
+        session.query(RawEvent)
+        .filter(
+            RawEvent.start_time >= window_start,
+            RawEvent.start_time < window_end,
+            RawEvent.is_idle == False,  # noqa: E712
+        )
+        .all()
+    )
+
+    bucket_seconds: dict[date, float] = {}
+    for event in candidates:
+        for bucket_date, seconds in _split_event_by_local_day(event):
+            if start_date <= bucket_date <= today:
+                bucket_seconds[bucket_date] = bucket_seconds.get(bucket_date, 0.0) + seconds
+
+    daily_totals = []
+    for offset in range(days):
+        day = start_date + timedelta(days=offset)
+        daily_totals.append({"date": day.isoformat(), "active_seconds": bucket_seconds.get(day, 0.0)})
+
+    # All-time total is a separate, cheap aggregate query - deliberately
+    # not limited to the `days` window, since a 50/100-hour cumulative
+    # achievement should reflect the user's ENTIRE tracked history, not
+    # just the last few months.
+    all_time_seconds = (
+        session.query(func.sum(RawEvent.duration_sec))
+        .filter(RawEvent.is_idle == False)  # noqa: E712
+        .scalar()
+    ) or 0.0
+
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date": today.isoformat(),
+        "daily_totals": daily_totals,
+        "all_time_active_seconds": all_time_seconds,
     }

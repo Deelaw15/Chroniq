@@ -548,14 +548,165 @@ function renderHeatmap(heatmap) {
 // ============================================================
 // Main load
 // ============================================================
+// ============================================================
+// Streaks & Achievements
+//
+// Streak = consecutive local calendar days where active_seconds met
+// the CURRENT daily goal, walking backward from today. One missed
+// day per calendar week (Monday-Sunday) is forgiven and doesn't
+// break the streak (but doesn't add to the count either) - a small
+// grace mechanic so one bad day doesn't erase real progress. Today
+// itself is never counted as a miss while still in progress - it's
+// simply skipped until it's either met or the day is over.
+//
+// Achievements are evaluated client-side against data the backend
+// already computed (today/week stats + the streak-data range) - see
+// aggregation.get_streak_data's docstring for why the goal itself,
+// and therefore streak logic, lives here rather than server-side.
+// ============================================================
+
+function _weekMondayKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0) ? 6 : day - 1;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+function computeStreak(dailyTotals, goalSeconds) {
+  const days = [...dailyTotals].reverse(); // most recent (today) first
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const graceUsedByWeek = new Set();
+  let streak = 0;
+
+  for (const day of days) {
+    const met = day.active_seconds >= goalSeconds;
+
+    if (day.date === todayStr && !met) {
+      continue; // today isn't over yet - not a miss, just not counted yet
+    }
+
+    if (met) {
+      streak++;
+      continue;
+    }
+
+    const weekKey = _weekMondayKey(day.date);
+    if (!graceUsedByWeek.has(weekKey)) {
+      graceUsedByWeek.add(weekKey);
+      continue; // forgiven miss - streak survives, doesn't increment
+    }
+
+    break; // second miss in the same week - streak ends here
+  }
+
+  return streak;
+}
+
+function computePerfectWeek(dailyTotals, goalSeconds) {
+  const last7 = dailyTotals.slice(-7);
+  if (last7.length < 7) return false;
+  return last7.every(d => d.active_seconds >= goalSeconds);
+}
+
+const ACHIEVEMENTS = [
+  { id: 'streak_3', title: 'Warming Up', desc: '3-day streak', icon: '🔥', check: ctx => ctx.streak >= 3 },
+  { id: 'streak_7', title: 'One Week Strong', desc: '7-day streak', icon: '🔥', check: ctx => ctx.streak >= 7 },
+  { id: 'streak_30', title: 'Locked In', desc: '30-day streak', icon: '🔥', check: ctx => ctx.streak >= 30 },
+  { id: 'streak_100', title: 'Unstoppable', desc: '100-day streak', icon: '🔥', check: ctx => ctx.streak >= 100 },
+  { id: 'hours_10', title: 'Getting Started', desc: '10 hours tracked, all-time', icon: '⏱️', check: ctx => ctx.allTimeHours >= 10 },
+  { id: 'hours_50', title: 'Building Momentum', desc: '50 hours tracked, all-time', icon: '⏱️', check: ctx => ctx.allTimeHours >= 50 },
+  { id: 'hours_100', title: 'Century Club', desc: '100 hours tracked, all-time', icon: '⏱️', check: ctx => ctx.allTimeHours >= 100 },
+  { id: 'perfect_week', title: 'Perfect Week', desc: 'Met your goal all 7 days', icon: '🏆', check: ctx => ctx.perfectWeek },
+  { id: 'low_switching', title: 'Deep Focus', desc: 'Way fewer app switches than usual, today', icon: '🎯', check: ctx => ctx.lowSwitchingToday },
+];
+
+function loadUnlockedAchievements() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem('chroniq.unlockedAchievements') || '[]'));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveUnlockedAchievements(set) {
+  localStorage.setItem('chroniq.unlockedAchievements', JSON.stringify([...set]));
+}
+
+let lastStreakValue = 0;
+
+function updateStreaksAndAchievements(today, week, streakData) {
+  const goalSeconds = getDailyGoalSeconds();
+  const streak = computeStreak(streakData.daily_totals, goalSeconds);
+  const perfectWeek = computePerfectWeek(streakData.daily_totals, goalSeconds);
+  const lowSwitchingToday = week.avg_app_switch_count > 0
+    && today.app_switch_count <= week.avg_app_switch_count * 0.5;
+  const allTimeHours = streakData.all_time_active_seconds / 3600;
+
+  const ctx = { streak, perfectWeek, lowSwitchingToday, allTimeHours };
+  lastStreakValue = streak;
+
+  // Streak badge on the Today page
+  const badge = document.getElementById('streak-badge');
+  const countEl = document.getElementById('streak-count');
+  if (badge && countEl) {
+    countEl.textContent = String(streak);
+    badge.classList.toggle('has-streak', streak > 0);
+  }
+
+  // Streak summary on the Achievements page (harmless to update even
+  // when that page isn't currently visible - cheap, keeps it fresh
+  // for whenever the user does switch to it)
+  const achStreakCount = document.getElementById('achievements-streak-count');
+  if (achStreakCount) {
+    achStreakCount.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
+  }
+
+  // Check for newly-unlocked achievements
+  const unlocked = loadUnlockedAchievements();
+  const newlyUnlocked = [];
+  for (const a of ACHIEVEMENTS) {
+    if (!unlocked.has(a.id) && a.check(ctx)) {
+      unlocked.add(a.id);
+      newlyUnlocked.push(a);
+    }
+  }
+  if (newlyUnlocked.length > 0) {
+    saveUnlockedAchievements(unlocked);
+    for (const a of newlyUnlocked) {
+      showToast(`${a.icon} Achievement unlocked!`, a.title, 'achievement');
+    }
+  }
+
+  renderAchievementsGrid(unlocked);
+}
+
+function renderAchievementsGrid(unlocked) {
+  const grid = document.getElementById('achievements-grid');
+  if (!grid) return;
+  grid.innerHTML = ACHIEVEMENTS.map(a => {
+    const isUnlocked = unlocked.has(a.id);
+    return `
+      <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}">
+        <div class="achievement-icon">${a.icon}</div>
+        <div class="achievement-title">${a.title}</div>
+        <div class="achievement-desc">${a.desc}</div>
+        ${isUnlocked ? '' : '<div class="achievement-lock">🔒 Locked</div>'}
+      </div>
+    `;
+  }).join('');
+}
+
 async function loadAll() {
   setStatus('Loading…');
-  let today, week, heatmap;
+  let today, week, heatmap, streakData;
   try {
-    [today, week, heatmap] = await Promise.all([
+    [today, week, heatmap, streakData] = await Promise.all([
       fetchJSON('/summary/today'),
       fetchJSON('/summary/week'),
       fetchJSON('/summary/heatmap'),
+      fetchJSON('/summary/streak-data?days=120'),
     ]);
   } catch (err) {
     console.error(err);
@@ -570,6 +721,7 @@ async function loadAll() {
     renderGauge(today);
     renderTopApps(today);
     renderHeatmap(heatmap);
+    updateStreaksAndAchievements(today, week, streakData);
     setStatus(`Last updated ${new Date().toLocaleTimeString()}`);
   } catch (err) {
     console.error(err);
@@ -705,11 +857,12 @@ function dismissToast(el) {
 function showToast(title, text, tone) {
   if (!toastStack) return;
   const el = document.createElement('div');
-  el.className = 'toast tone-' + (tone === 'break' ? 'break' : 'focus');
+  const toneClass = tone === 'break' ? 'break' : tone === 'achievement' ? 'achievement' : 'focus';
+  el.className = 'toast tone-' + toneClass;
 
   const icon = document.createElement('span');
   icon.className = 'toast-icon';
-  icon.textContent = tone === 'break' ? '☕' : '⏱️';
+  icon.textContent = tone === 'break' ? '☕' : tone === 'achievement' ? '🏆' : '⏱️';
 
   const body = document.createElement('div');
   body.className = 'toast-body';
@@ -1105,24 +1258,34 @@ updateUI();
 // ============================================================
 const viewToday = document.getElementById('view-today');
 const viewWeekly = document.getElementById('view-weekly');
+const viewAchievements = document.getElementById('view-achievements');
 const viewSettings = document.getElementById('view-settings');
 const navToday = document.getElementById('nav-today');
 const navWeekly = document.getElementById('nav-weekly');
+const navAchievements = document.getElementById('nav-achievements');
 const navSettings = document.getElementById('nav-settings');
 
 function showView(view) {
   viewToday.style.display = (view === 'today') ? '' : 'none';
   viewWeekly.style.display = (view === 'weekly') ? '' : 'none';
+  viewAchievements.style.display = (view === 'achievements') ? '' : 'none';
   viewSettings.style.display = (view === 'settings') ? '' : 'none';
   navToday.classList.toggle('active', view === 'today');
   navWeekly.classList.toggle('active', view === 'weekly');
+  navAchievements.classList.toggle('active', view === 'achievements');
   navSettings.classList.toggle('active', view === 'settings');
   if (view === 'weekly') loadWeeklyPage();
   if (view === 'settings') loadSettingsPage();
+  if (view === 'achievements') {
+    renderAchievementsGrid(loadUnlockedAchievements());
+    const statusEl = document.getElementById('achievements-status-text');
+    if (statusEl) statusEl.textContent = `${ACHIEVEMENTS.filter(a => loadUnlockedAchievements().has(a.id)).length} of ${ACHIEVEMENTS.length} unlocked`;
+  }
 }
 
 navToday.addEventListener('click', () => showView('today'));
 navWeekly.addEventListener('click', () => showView('weekly'));
+navAchievements.addEventListener('click', () => showView('achievements'));
 navSettings.addEventListener('click', () => showView('settings'));
 // Quick timer popover (opens from gear in the now-card)
 document.getElementById('settings-toggle').addEventListener('click', (e) => {

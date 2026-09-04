@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.dependencies import get_db
-from backend.schemas import DailySummaryOut, WeeklySummaryOut, HeatmapOut, LiveStatusOut
+from backend.schemas import DailySummaryOut, WeeklySummaryOut, HeatmapOut, LiveStatusOut, StreakDataOut
 from backend.services import aggregation
 
 router = APIRouter(prefix="/summary", tags=["summary"])
@@ -57,3 +57,14 @@ def summary_heatmap(
         today = date.today()
         start_date = today - timedelta(days=today.weekday())  # Monday=0 ... Sunday=6
     return aggregation.get_hourly_heatmap(db, start_date)
+
+
+@router.get("/streak-data", response_model=StreakDataOut)
+def summary_streak_data(
+    days: int = Query(120, ge=7, le=730, description="How many days of daily totals to return, today inclusive."),
+    db: Session = Depends(get_db),
+):
+    """Raw daily totals + all-time total for streak/achievement
+    calculations, which happen client-side against the user's current
+    goal (see aggregation.get_streak_data's docstring for why)."""
+    return aggregation.get_streak_data(db, days)

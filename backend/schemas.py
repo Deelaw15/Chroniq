@@ -70,3 +70,15 @@ class HeatmapOut(BaseModel):
     start_date: str
     end_date: str
     days: list[HeatmapDay]
+
+
+class StreakDayTotal(BaseModel):
+    date: str
+    active_seconds: float
+
+
+class StreakDataOut(BaseModel):
+    start_date: str
+    end_date: str
+    daily_totals: list[StreakDayTotal]
+    all_time_active_seconds: float

@@ -28,6 +28,7 @@
     <div class="avatar"><img src="logo.png" alt="Chroniq" class="avatar-img"></div>
     <div class="nav-item active" id="nav-today"><span class="nav-icon">▤</span>Today</div>
     <div class="nav-item" id="nav-weekly"><span class="nav-icon">▦</span>Weekly</div>
+    <div class="nav-item" id="nav-achievements"><span class="nav-icon">🏆</span>Achievements</div>
     <div class="nav-item" id="nav-settings"><span class="nav-icon">⚙</span>Settings</div>
   </nav>
 
@@ -99,7 +100,13 @@
 
       <!-- Gauge + Top apps -->
       <section class="panel">
-        <span class="panel-title">Daily Goal Progress</span>
+        <div class="panel-title-row">
+          <span class="panel-title" style="margin-bottom:0;">Daily Goal Progress</span>
+          <div class="streak-badge" id="streak-badge" title="Consecutive days meeting your goal (1 free miss per week)">
+            <span class="streak-flame">🔥</span>
+            <span id="streak-count">0</span>
+          </div>
+        </div>
         <div class="gauge-wrap">
           <div class="gauge-visual">
             <svg class="goal-gauge" viewBox="0 0 220 140" role="img" aria-label="Daily goal countdown">
@@ -197,7 +204,32 @@
     <div class="frame-footer" id="weekly-status-text">Loading…</div>
   </div>
 
-  <!-- Right rail -->
+  <!-- Achievements view -->
+  <div class="main-col" id="view-achievements" style="display:none;">
+    <div class="top-bar">
+      <span class="brand-title">Achievements</span>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="panel">
+      <span class="panel-title">Streak Progress</span>
+      <div class="achievements-streak-row">
+        <div class="achievements-streak-flame">🔥</div>
+        <div>
+          <div class="achievements-streak-count" id="achievements-streak-count">0 days</div>
+          <div class="achievements-streak-sub">Current streak · 1 free miss per week keeps it alive</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <span class="panel-title">Badges</span>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+
+    <div class="frame-footer" id="achievements-status-text">Loading…</div>
+  </div>
+
   <!-- Settings view -->
   <div class="main-col" id="view-settings" style="display:none;">
     <div class="top-bar">
