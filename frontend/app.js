@@ -83,6 +83,62 @@ function colorForApp(appName) {
 }
 
 // ============================================================
+// App name humanization (display only - the tracker/DB/CSV export
+// always keep the raw executable name; this only affects what's
+// rendered on screen, via humanizeAppName below).
+// ============================================================
+const APP_DISPLAY_NAMES = {
+  'chrome.exe': 'Google Chrome',
+  'msedge.exe': 'Microsoft Edge',
+  'firefox.exe': 'Mozilla Firefox',
+  'code.exe': 'Visual Studio Code',
+  'devenv.exe': 'Visual Studio',
+  'explorer.exe': 'File Explorer',
+  'notepad.exe': 'Notepad',
+  'notepad++.exe': 'Notepad++',
+  'winword.exe': 'Microsoft Word',
+  'excel.exe': 'Microsoft Excel',
+  'powerpnt.exe': 'Microsoft PowerPoint',
+  'outlook.exe': 'Microsoft Outlook',
+  'onenote.exe': 'Microsoft OneNote',
+  'teams.exe': 'Microsoft Teams',
+  'slack.exe': 'Slack',
+  'discord.exe': 'Discord',
+  'spotify.exe': 'Spotify',
+  'notion.exe': 'Notion',
+  'figma.exe': 'Figma',
+  'postman.exe': 'Postman',
+  'windowsterminal.exe': 'Windows Terminal',
+  'cmd.exe': 'Command Prompt',
+  'powershell.exe': 'Windows PowerShell',
+  'pwsh.exe': 'PowerShell',
+  'zoom.exe': 'Zoom',
+  'steam.exe': 'Steam',
+  'acrord32.exe': 'Adobe Acrobat Reader',
+  'photoshop.exe': 'Adobe Photoshop',
+  'illustrator.exe': 'Adobe Illustrator',
+  'idea64.exe': 'IntelliJ IDEA',
+  'pycharm64.exe': 'PyCharm',
+  'sublime_text.exe': 'Sublime Text',
+  'whatsapp.exe': 'WhatsApp',
+  'telegram.exe': 'Telegram',
+};
+
+// Falls back to stripping ".exe" and title-casing whatever's left, so
+// an app that isn't in the map still reads better than a raw filename.
+function humanizeAppName(exeName) {
+  if (!exeName) return exeName;
+  const known = APP_DISPLAY_NAMES[exeName.toLowerCase()];
+  if (known) return known;
+  const base = exeName.replace(/\.exe$/i, '');
+  return base
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map(w => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+// ============================================================
 // Live "Focus time today" clock
 // The tracker only writes an event to the DB when you switch apps or
 // go idle, so /summary/today lags reality by however long you've sat
@@ -125,7 +181,7 @@ function renderLiveClock() {
   } else {
     chip.classList.add('is-live');
     text.textContent = liveClock.currentApp
-      ? `Tracking · ${liveClock.currentApp}`
+      ? `Tracking · ${humanizeAppName(liveClock.currentApp)}`
       : 'Tracking';
   }
 }
@@ -360,7 +416,7 @@ function renderTopApps(today) {
       <div class="app-row">
         <span class="app-rank">${idx + 1}</span>
         <div class="app-bar-track"><div class="app-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-        <span class="app-name" title="${item.app_name}">${item.app_name}</span>
+        <span class="app-name" title="${item.app_name}">${humanizeAppName(item.app_name)}</span>
         <span class="app-time">${formatShort(item.total_seconds)}</span>
       </div>
     `;
@@ -1504,7 +1560,7 @@ async function loadWeeklyPage() {
         <div class="app-row">
           <span class="app-rank">${idx + 1}</span>
           <div class="app-bar-track"><div class="app-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-          <span class="app-name" title="${item.app_name}">${item.app_name}</span>
+          <span class="app-name" title="${item.app_name}">${humanizeAppName(item.app_name)}</span>
           <span class="app-time">${formatShort(item.total_seconds)}</span>
         </div>
       `;
@@ -1515,7 +1571,7 @@ async function loadWeeklyPage() {
   const dayTableEl = document.getElementById('weekly-day-table');
   dayTableEl.innerHTML = dayDetails.map(day => {
     const dayName = weekdayName(day.date);
-    const topApp = day.app_breakdown.length > 0 ? day.app_breakdown[0].app_name : '—';
+    const topApp = day.app_breakdown.length > 0 ? humanizeAppName(day.app_breakdown[0].app_name) : '—';
     return `
       <div class="day-table-row">
         <div>
