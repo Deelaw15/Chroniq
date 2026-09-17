@@ -254,6 +254,28 @@ function renderKPIs(today, week) {
 
   document.getElementById('kpi-active-day').textContent =
     week.most_active_day ? weekdayName(week.most_active_day) : '—';
+
+  renderActivitySplit(today);
+}
+
+// ============================================================
+// Rendering: active-vs-idle split (total PC time today)
+// ============================================================
+function renderActivitySplit(today) {
+  const active = Math.max(0, Number(today.total_active_seconds) || 0);
+  const idle = Math.max(0, Number(today.total_idle_seconds) || 0);
+  const total = active + idle;
+
+  const activePct = total > 0 ? (active / total) * 100 : 0;
+  const idlePct = total > 0 ? 100 - activePct : 0;
+
+  document.getElementById('split-total-value').textContent = formatHMS(total);
+  document.getElementById('split-active-time').textContent = formatShort(active);
+  document.getElementById('split-idle-time').textContent = formatShort(idle);
+  document.getElementById('split-active-pct').textContent = total > 0 ? `${Math.round(activePct)}%` : '—';
+  document.getElementById('split-idle-pct').textContent = total > 0 ? `${Math.round(idlePct)}%` : '—';
+  document.getElementById('split-bar-active').style.width = `${activePct}%`;
+  document.getElementById('split-bar-idle').style.width = `${idlePct}%`;
 }
 
 // ============================================================
@@ -515,9 +537,12 @@ function shadeHex(hex, factor) {
   return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
 }
 
-function renderHeatmap(heatmap) {
-  const daysEl = document.getElementById('heatmap-days');
-  const axisEl = document.getElementById('heatmap-hour-axis');
+function renderHeatmap(heatmap, ids) {
+  const cfg = ids || {};
+  const daysEl = document.getElementById(cfg.days || 'heatmap-days');
+  const axisEl = document.getElementById(cfg.axis || 'heatmap-hour-axis');
+  const legendEl = document.getElementById(cfg.legend || 'heatmap-legend');
+  if (!daysEl || !axisEl) return;
   daysEl.innerHTML = '';
   axisEl.innerHTML = '';
 
@@ -556,7 +581,7 @@ function renderHeatmap(heatmap) {
 
   // Update legend swatches to show smooth ramp (left=less, right=more)
   try {
-    const legend = document.querySelector('.heatmap-legend');
+    const legend = legendEl;
     const swatches = legend ? legend.querySelectorAll('.heat-swatch') : null;
     if (swatches && swatches.length > 0) {
       for (let i = 0; i < swatches.length; i++) {
@@ -1483,31 +1508,53 @@ document.getElementById('settings-reset-btn').addEventListener('click', () => {
 // Weekly page
 // ============================================================
 let weeklyChart = null;
+let weeklySelectedMonday = null; // set on first load; lets Prev/Next browse any past week
+
+// Pure calendar-date arithmetic, deliberately never touching local time.
+// Building the Date at local midnight and reading it back via
+// toISOString() (which converts to UTC) rolls the date back a day in
+// any positive-UTC-offset timezone - anchoring everything in UTC from
+// the start sidesteps that entirely.
+function addDaysToDateStr(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
 
 function mostRecentMonday() {
-  const today = new Date();
-  const day = today.getDay(); // 0=Sun..6=Sat
+  const now = new Date();
+  // Read the calendar date in LOCAL time (today's date is a wall-clock
+  // concept), then hand off to the UTC-anchored arithmetic above so the
+  // result is never at risk of toISOString() shifting it near midnight.
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const day = new Date(todayStr + 'T12:00:00').getDay(); // 0=Sun..6=Sat (noon avoids any DST edge)
   const diff = (day === 0) ? 6 : day - 1; // days since Monday
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - diff);
-  return monday.toISOString().slice(0, 10);
+  return addDaysToDateStr(todayStr, -diff);
 }
 
 async function loadWeeklyPage() {
   const statusEl = document.getElementById('weekly-status-text');
   statusEl.textContent = 'Loading…';
 
-  const thisMonday = mostRecentMonday();
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(lastMonday.getDate() - 7);
-  const lastMondayStr = lastMonday.toISOString().slice(0, 10);
+  if (!weeklySelectedMonday) weeklySelectedMonday = mostRecentMonday();
+  const thisMonday = weeklySelectedMonday;
+  const lastMondayStr = addDaysToDateStr(thisMonday, -7);
+  const isCurrentWeek = thisMonday === mostRecentMonday();
+  const compareOn = document.getElementById('week-compare-toggle').checked;
 
-  let thisWeek, lastWeek, dayDetails;
+  let thisWeek, lastWeek, dayDetails, weekHeatmap, prevHeatmap;
   try {
-    [thisWeek, lastWeek] = await Promise.all([
+    const fetches = [
       fetchJSON(`/summary/week?start_date=${thisMonday}`),
       fetchJSON(`/summary/week?start_date=${lastMondayStr}`),
-    ]);
+      fetchJSON(`/summary/heatmap?start_date=${thisMonday}`),
+    ];
+    if (compareOn) fetches.push(fetchJSON(`/summary/heatmap?start_date=${lastMondayStr}`));
+    const results = await Promise.all(fetches);
+    thisWeek = results[0]; lastWeek = results[1]; weekHeatmap = results[2];
+    if (compareOn) prevHeatmap = results[3];
+
     // Per-day detail (idle time, top app) isn't in the weekly summary,
     // so fetch each day individually - reuses the existing /summary/day
     // endpoint rather than adding a new one just for this table.
@@ -1521,6 +1568,18 @@ async function loadWeeklyPage() {
     return;
   }
 
+  // Nav chrome: disable "Next" beyond the current week, and relabel the
+  // KPI cards / heatmap columns so they read correctly whether you're
+  // looking at the live current week or browsing an older one.
+  document.getElementById('week-next-btn').disabled = isCurrentWeek;
+  document.getElementById('week-jump-btn').disabled = isCurrentWeek;
+  document.getElementById('weekly-this-label').textContent = isCurrentWeek ? 'This Week' : 'Selected Week';
+  document.getElementById('weekly-last-label').textContent = isCurrentWeek ? 'Last Week' : 'Week Before';
+  document.getElementById('weekly-delta-label').textContent = isCurrentWeek ? 'Vs Last Week' : 'Vs Week Before';
+  document.getElementById('weekly-heatmap-current-label').textContent =
+    isCurrentWeek ? 'This week' : `Week of ${thisWeek.start_date}`;
+  document.getElementById('weekly-heatmap-prev-label').textContent = `Week of ${lastWeek.start_date}`;
+
   const thisTotal = thisWeek.daily_totals.reduce((a, d) => a + d.active_seconds, 0);
   const lastTotal = lastWeek.daily_totals.reduce((a, d) => a + d.active_seconds, 0);
 
@@ -1528,6 +1587,18 @@ async function loadWeeklyPage() {
   document.getElementById('weekly-range').textContent = `${thisWeek.start_date} → ${thisWeek.end_date}`;
   document.getElementById('weekly-this-total').textContent = formatShort(thisTotal);
   document.getElementById('weekly-last-total').textContent = formatShort(lastTotal);
+
+  renderHeatmap(weekHeatmap, { days: 'weekly-heatmap-days', axis: 'weekly-heatmap-hour-axis', legend: 'weekly-heatmap-legend' });
+  const prevCol = document.getElementById('weekly-heatmap-prev-col');
+  const compareGrid = document.getElementById('heatmap-compare-grid');
+  if (compareOn && prevHeatmap) {
+    renderHeatmap(prevHeatmap, { days: 'weekly-heatmap-prev-days', axis: 'weekly-heatmap-prev-hour-axis', legend: 'weekly-heatmap-prev-legend' });
+    prevCol.hidden = false;
+    compareGrid.classList.add('is-comparing');
+  } else {
+    prevCol.hidden = true;
+    compareGrid.classList.remove('is-comparing');
+  }
 
   const maxTotal = Math.max(thisTotal, lastTotal, 1);
   document.getElementById('weekly-this-bar').style.width = `${(thisTotal / maxTotal) * 100}%`;
@@ -1638,3 +1709,19 @@ function renderWeeklyChart(dailyTotals) {
 }
 
 document.getElementById('weekly-refresh-btn').addEventListener('click', loadWeeklyPage);
+
+document.getElementById('week-prev-btn').addEventListener('click', () => {
+  weeklySelectedMonday = addDaysToDateStr(weeklySelectedMonday || mostRecentMonday(), -7);
+  loadWeeklyPage();
+});
+document.getElementById('week-next-btn').addEventListener('click', () => {
+  const next = addDaysToDateStr(weeklySelectedMonday || mostRecentMonday(), 7);
+  // Never browse into a future week that hasn't happened yet.
+  weeklySelectedMonday = next > mostRecentMonday() ? mostRecentMonday() : next;
+  loadWeeklyPage();
+});
+document.getElementById('week-jump-btn').addEventListener('click', () => {
+  weeklySelectedMonday = mostRecentMonday();
+  loadWeeklyPage();
+});
+document.getElementById('week-compare-toggle').addEventListener('change', loadWeeklyPage);
