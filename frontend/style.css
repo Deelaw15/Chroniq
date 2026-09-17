@@ -308,6 +308,63 @@ body {
 .day-table-value { font-family: var(--font-display); color: var(--text-secondary); }
 .nav-item { cursor: pointer; }
 
+/* ---------- Week navigation (Weekly page) ---------- */
+/* Wraps .week-nav + .kpi-row as one block - see the #view-weekly grid
+   override further down, which budgets a fixed number of row tracks
+   and needs this pair to stay a single child to keep that math intact. */
+.weekly-head-controls { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.week-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.week-nav-btn, .week-nav-jump {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.week-nav-jump { color: var(--accent); }
+.week-nav-btn:hover:not(:disabled), .week-nav-jump:hover:not(:disabled) { background: var(--panel-raised); color: var(--text); }
+.week-nav-btn:disabled, .week-nav-jump:disabled { opacity: 0.4; cursor: default; }
+.week-compare-toggle {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--text-secondary);
+  margin-left: 8px; cursor: pointer;
+}
+.week-compare-toggle input { accent-color: var(--accent); cursor: pointer; }
+
+/* ---------- Heatmap side-by-side comparison (Weekly page) ---------- */
+.heatmap-compare-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.heatmap-compare-grid.is-comparing { grid-template-columns: 1fr 1fr; }
+.heatmap-compare-label { font-family: var(--font-display); font-size: 11px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+@media (max-width: 860px) {
+  .heatmap-compare-grid.is-comparing { grid-template-columns: 1fr; }
+}
+
+/* ---------- Active vs idle split panel ---------- */
+.split-panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.split-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.split-total { display: flex; align-items: baseline; gap: 8px; }
+.split-total-value { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
+.split-total-label { font-size: 12px; color: var(--text-dim); }
+.split-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); }
+.split-chip { display: flex; align-items: center; gap: 6px; }
+.split-chip b { color: var(--text); font-family: var(--font-display); font-weight: 600; }
+.split-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.split-dot--active { background: var(--accent); }
+.split-dot--idle { background: var(--text-dim); }
+.split-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--panel-raised); }
+.split-bar-seg { height: 100%; transition: width 0.4s ease; }
+.split-bar-seg--active { background: var(--accent); }
+.split-bar-seg--idle { background: var(--text-dim); opacity: 0.55; }
+.split-sub { font-size: 11px; color: var(--text-dim); font-family: var(--font-display); }
+
 /* ---------- Insights panel ---------- */
 .insights-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
 .insight-row {
@@ -841,6 +898,11 @@ body {
   .insight-icon { width: 20px; height: 20px; font-size: 10px; }
   .insight-text { font-size: 10px; line-height: 1.25; }
   .insight-basis { font-size: 8px; }
+
+  .split-panel { padding: 10px 12px; gap: 7px; }
+  .split-total-value { font-size: 16px; }
+  .split-total-label, .split-legend { font-size: 10px; }
+  .split-bar { height: 8px; }
 
   #view-today .content-grid {
     min-height: 270px;
@@ -1391,6 +1453,10 @@ body {
 
   #view-weekly .top-bar {
     padding: 12px 15px;
+  }
+
+  #view-weekly .weekly-head-controls {
+    gap: 8px;
   }
 
   #view-weekly .kpi-card {

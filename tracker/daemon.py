@@ -28,6 +28,7 @@ from config.settings import (
 )
 from tracker.window_capture import get_active_window
 from tracker.idle_detector import is_idle
+from tracker.lock_detector import is_locked
 from db.database import SessionLocal
 from db.models import RawEvent
 
@@ -126,8 +127,18 @@ def run(stop_event: Optional[Event] = None):
     try:
         while stop_event is None or not stop_event.is_set():
             now = datetime.utcnow()
-            app_name, window_title = get_active_window()
-            idle_flag = is_idle(IDLE_THRESHOLD_SECONDS)
+
+            if is_locked():
+                # The workstation is locked (or on the logon/screensaver
+                # desktop) - there's no meaningful "active window" to read
+                # there, and we don't want a stale foreground app or the
+                # lock screen itself showing up as tracked activity. Treat
+                # the whole locked stretch as idle under a distinct label.
+                app_name, window_title = "Locked", None
+                idle_flag = True
+            else:
+                app_name, window_title = get_active_window()
+                idle_flag = is_idle(IDLE_THRESHOLD_SECONDS)
 
             if current_state is None:
                 current_state = TrackerState(
